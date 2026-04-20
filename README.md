@@ -8,6 +8,7 @@ Instead of relying on fragile RAG (Retrieval-Augmented Generation) with vector d
 
 ## Features
 
+- **Platform Integrations:** Natively hooks into AI coding agents like OpenCode to silently capture conversations and provide autonomous file management tools.
 - **Multi-Provider Support:** Works with Gemini, OpenAI, Anthropic, and Groq via the `instructor` library.
 - **Safe & Structured (No LLM File Editing):** Uses strict Pydantic schemas and a local SQLite database to track the exact state, hashes, and links of every file. The LLM never has raw write access to your filesystem, preventing hallucinated paths or broken markdown.
 - **Dual Ingestion:** Ingests raw external notes (`wiki/raw/`) and continuously flushes daily AI conversation transcripts (`wiki/daily/`).
@@ -36,25 +37,39 @@ my-research/
     └── state.db         # SQLite database tracking file hashes and relationships
 ```
 
-## Installation
+## Platform Integrations
 
-1. **Clone the repository and enter the `src` directory:**
+While this repository provides a standalone Python engine, you can fully integrate it into AI coding assistants so that it automatically runs in the background of your projects.
+
+### 🔌 OpenCode Integration
+We provide a native TypeScript plugin for OpenCode that automates session extraction and exposes the knowledge base to the AI as native tools.
+👉 **[Read the OpenCode SETUP.md Guide](.opencode/SETUP.md)**
+
+*(More platform integrations coming soon!)*
+
+---
+
+## Standalone CLI Installation
+
+If you prefer to run the engine manually via the terminal, or want to host it centrally on your machine:
+
+1. **Clone the repository:**
    ```bash
    git clone <your-repo-url>
-   cd src
+   cd "Personal LLM Knowledge Bases"
    ```
 
 2. **Create a virtual environment and install dependencies:**
    ```bash
+   cd src
    python -m venv venv
+   
    # On Windows
    .\venv\Scripts\activate
    # On Mac/Linux
    source venv/bin/activate
    
    pip install -r requirements.txt
-   # Alternatively, the dependencies are:
-   # google-genai pyyaml pydantic python-dotenv markdown openai anthropic instructor groq python-frontmatter
    ```
 
 3. **Configure your API Keys:**
@@ -67,6 +82,8 @@ my-research/
    ANTHROPIC_API_KEY=your_api_key_here
    GROQ_API_KEY=your_api_key_here
    ```
+
+---
 
 ## Usage
 
@@ -105,7 +122,7 @@ python main.py --dir "my-project-kb" reject wiki/.drafts/concept_name.md --feedb
 ```
 
 ### 5. Memory Flush (Conversation Capture)
-Pass a raw conversation transcript from an AI coding agent (like Claude Code or OpenCode) to extract architectural decisions, action items, and lessons learned. The output is appended chronologically to today's `daily/` log.
+Pass a raw conversation transcript from an AI coding agent to extract architectural decisions, action items, and lessons learned. The output is appended chronologically to today's `daily/` log.
 ```bash
 python main.py --dir "my-project-kb" flush path/to/transcript.txt
 ```
