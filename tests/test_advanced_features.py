@@ -10,7 +10,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SRC_DIR = BASE_DIR / "src"
 TESTS_DIR = BASE_DIR / "tests"
 KB_DIR = TESTS_DIR / "test-adv-kb"
-MAIN_PY = SRC_DIR / "main.py"
 PYTHON_EXE = SRC_DIR / "venv" / "Scripts" / "python.exe"
 
 @pytest.fixture(scope="session", autouse=True)
@@ -23,7 +22,7 @@ def setup_teardown():
 
 def run_cli(*args):
     """Helper to run the CLI."""
-    cmd = [str(PYTHON_EXE), str(MAIN_PY), "--dir", str(KB_DIR)] + list(args)
+    cmd = [str(PYTHON_EXE), "-m", "llm_wiki.cli", "--dir", str(KB_DIR)] + list(args)
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(BASE_DIR))
     print(f"COMMAND: {' '.join(cmd)}")
     print(f"STDOUT: {result.stdout}")

@@ -1,24 +1,31 @@
 import { type Plugin, tool } from "@opencode-ai/plugin";
 import { exec } from "child_process";
 import { promisify } from "util";
+import fs from "fs";
+import path from "path";
 
 const execAsync = promisify(exec);
 
 export const LlmWikiPlugin: Plugin = async ({ client, directory }) => {
   const isWin = process.platform === "win32";
-  const pythonCmd = isWin 
-    ? `${directory}\\src\\venv\\Scripts\\python.exe` 
-    : `${directory}/src/venv/bin/python`;
-  const mainPy = isWin 
-    ? `${directory}\\src\\main.py` 
-    : `${directory}/src/main.py`;
+  
+  // Resolve the CLI command. Try to use a local venv if it exists.
+  let cliCmd = "llm-wiki";
+  const localVenvWin = path.join(directory, "venv", "Scripts", "llm-wiki.exe");
+  const localVenvMac = path.join(directory, "venv", "bin", "llm-wiki");
+  
+  if (isWin && fs.existsSync(localVenvWin)) {
+    cliCmd = `"${localVenvWin}"`;
+  } else if (!isWin && fs.existsSync(localVenvMac)) {
+    cliCmd = `"${localVenvMac}"`;
+  }
     
   const kbDir = "my-research";
 
   // Helper to execute commands safely
   const runCmd = async (command: string) => {
     try {
-      const fullCmd = `"${pythonCmd}" "${mainPy}" --dir "${kbDir}" ${command}`;
+      const fullCmd = `${cliCmd} --dir "${kbDir}" ${command}`;
       const { stdout, stderr } = await execAsync(fullCmd, { cwd: directory });
       return stdout || stderr || "Command executed successfully.";
     } catch (e: any) {

@@ -51,17 +51,16 @@ We provide a native TypeScript plugin for OpenCode that automates session extrac
 
 ## Standalone CLI Installation
 
-If you prefer to run the engine manually via the terminal, or want to host it centrally on your machine:
+You can install the engine as a globally available pip package:
 
 1. **Clone the repository:**
    ```bash
-   git clone <your-repo-url>
-   cd "Personal LLM Knowledge Bases"
+   git clone https://github.com/khang269/LLM-Knowledge-Bases.git
+   cd LLM-Knowledge-Bases
    ```
 
-2. **Create a virtual environment and install dependencies:**
+2. **Install the package (Recommended via a virtual environment):**
    ```bash
-   cd src
    python -m venv venv
    
    # On Windows
@@ -69,93 +68,93 @@ If you prefer to run the engine manually via the terminal, or want to host it ce
    # On Mac/Linux
    source venv/bin/activate
    
-   pip install -r requirements.txt
+   pip install -e .
    ```
 
 3. **Configure your API Keys:**
-   Create a `.env` file in the `src` directory:
+   Create a `.env` file in your working directory (or use environment variables):
    ```env
    LLM_PROVIDER=gemini # Choose: gemini, openai, anthropic, or groq
    
    GEMINI_API_KEY=your_api_key_here
    OPENAI_API_KEY=your_api_key_here
    ANTHROPIC_API_KEY=your_api_key_here
-   GROQ_API_KEY=your_api_key_here
+   GROQ_API_KEY=your_groq_api_key
    ```
 
 ---
 
 ## Usage
 
-You can manage your knowledge base directly via the CLI. By default, it operates on a folder named `my-research` in your current directory, but you can target any project folder using the `--dir` flag.
+Once installed, you can manage your knowledge base directly via the `llm-wiki` CLI command. By default, it operates on a folder named `my-research` in your current directory, but you can target any project folder using the `--dir` flag.
 
 ### 1. Initialization
 Bootstrap the folder structure and SQLite database for a new project:
 ```bash
-python main.py --dir "my-project-kb" init
+llm-wiki --dir "my-project-kb" init
 ```
 
 ### 2. Ingestion (Raw Sources & Daily Logs)
 Process new external notes or updated daily conversation logs. The system hashes files to skip duplicates and extracts key concepts into the database.
 ```bash
 # Ingest a specific file
-python main.py --dir "my-project-kb" ingest raw/articles/some_paper.md
+llm-wiki --dir "my-project-kb" ingest raw/articles/some_paper.md
 
 # Ingest all new/modified files in raw/ and daily/
-python main.py --dir "my-project-kb" ingest
+llm-wiki --dir "my-project-kb" ingest
 ```
 
 ### 3. Compilation
 Tell the LLM to review the SQLite database for concepts that have new source material. It will bundle the sources, synthesize the knowledge, and write Markdown files to the `.drafts/` folder.
 ```bash
-python main.py --dir "my-project-kb" compile
+llm-wiki --dir "my-project-kb" compile
 ```
 
 ### 4. Approval & Rejection
 Review the generated files in `wiki/.drafts/`.
 ```bash
 # Approve all drafts and publish them to the live wiki
-python main.py --dir "my-project-kb" approve
+llm-wiki --dir "my-project-kb" approve
 
 # Reject a specific draft with feedback (the LLM will remember this feedback next time)
-python main.py --dir "my-project-kb" reject wiki/.drafts/concept_name.md --feedback "Make it more concise and focus on the technical implementation."
+llm-wiki --dir "my-project-kb" reject wiki/.drafts/concept_name.md --feedback "Make it more concise and focus on the technical implementation."
 ```
 
 ### 5. Memory Flush (Conversation Capture)
 Pass a raw conversation transcript from an AI coding agent to extract architectural decisions, action items, and lessons learned. The output is appended chronologically to today's `daily/` log.
 ```bash
-python main.py --dir "my-project-kb" flush path/to/transcript.txt
+llm-wiki --dir "my-project-kb" flush path/to/transcript.txt
 ```
 
 ### 6. Session Context Injection
 Output the master `index.md` catalog alongside the most recent daily log. You can pipe this directly into your AI agent's system prompt so it instantly "remembers" the context of the project.
 ```bash
-python main.py --dir "my-project-kb" session-context
+llm-wiki --dir "my-project-kb" session-context
 ```
 
 ### 7. Querying & Compounding Knowledge
 Ask the knowledge base complex questions. It will read the index, select the relevant articles, and synthesize an answer. Use `--file-back` to permanently save the answer to `wiki/qa/` and update the index.
 ```bash
-python main.py --dir "my-project-kb" query "What is our standard authentication strategy?" --file-back
+llm-wiki --dir "my-project-kb" query "What is our standard authentication strategy?" --file-back
 ```
 
 ### 8. Linting & Health Checks
 Run static analysis to find broken links, missing YAML frontmatter, and orphan pages.
 ```bash
 # Fast, free structural checks
-python main.py --dir "my-project-kb" lint
+llm-wiki --dir "my-project-kb" lint
 
 # Include LLM-driven contradiction hunting (reads the whole wiki to find conflicting claims)
-python main.py --dir "my-project-kb" lint --llm
+llm-wiki --dir "my-project-kb" lint --llm
 ```
 
 ## Overriding Providers and Models
 
 You can dynamically override the `.env` defaults for a specific task via the CLI:
 ```bash
-python main.py --provider anthropic --model claude-3-5-sonnet-latest compile
-python main.py --provider openai --model gpt-4o query "..."
-python main.py --provider groq --model llama-3.3-70b-versatile ingest
+llm-wiki --provider anthropic --model claude-3-5-sonnet-latest compile
+llm-wiki --provider openai --model gpt-4o query "..."
+llm-wiki --provider groq --model llama-3.3-70b-versatile ingest
 ```
 
 ## Testing

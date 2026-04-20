@@ -12,35 +12,27 @@ This guide will walk you through installing and configuring the LLM Knowledge Ba
 
 ## Step 1: Set Up the Python Engine
 
-The heavy lifting (LLM calls, SQLite state tracking, Pydantic validation) is handled by a robust Python backend. 
+The heavy lifting (LLM calls, SQLite state tracking, Pydantic validation) is handled by a robust Python backend package.
 
-1. **Copy the Engine:**
-   Place the `src` folder (containing the `llm_wiki` package and `main.py`) into your project root. 
-   *(Note: You can also place this in a centralized location on your machine and update the paths in the plugin later).*
-
-2. **Create a Virtual Environment:**
-   Open a terminal in your project root and run:
+1. **Install the Package:**
+   You can install the `llm-wiki` package globally using `pipx` or locally in a virtual environment for your project:
    ```bash
-   # Create a virtual environment inside the src folder
-   cd src
+   # Create a virtual environment in your project
    python -m venv venv
-   ```
-
-3. **Install Python Dependencies:**
-   Activate the environment and install the required packages:
-   ```bash
+   
    # On Windows:
    .\venv\Scripts\activate
    # On Mac/Linux:
    source venv/bin/activate
    
-   pip install google-genai pyyaml pydantic python-dotenv markdown openai anthropic instructor groq python-frontmatter
+   # Install the package directly from GitHub (or local clone)
+   pip install git+https://github.com/khang269/LLM-Knowledge-Bases.git
    ```
 
-4. **Configure API Keys:**
-   Create a `.env` file inside the `src` directory:
+2. **Configure API Keys:**
+   Create a `.env` file in the root of your project:
    ```env
-   # src/.env
+   # .env
    LLM_PROVIDER=gemini  # Options: gemini, openai, anthropic, groq
    
    GEMINI_API_KEY=your_gemini_api_key
@@ -53,7 +45,7 @@ The heavy lifting (LLM calls, SQLite state tracking, Pydantic validation) is han
 
 ## Step 2: Install the OpenCode Plugin
 
-OpenCode supports custom plugins written in TypeScript. We have provided a plugin that bridges OpenCode's event hooks to our Python engine.
+OpenCode supports custom plugins written in TypeScript. We have provided a plugin that bridges OpenCode's event hooks to the `llm-wiki` CLI.
 
 1. **Copy Plugin Files:**
    Ensure the `.opencode` folder in your project root contains the following structure:
@@ -71,8 +63,8 @@ OpenCode supports custom plugins written in TypeScript. We have provided a plugi
    bun install
    ```
 
-3. **Verify Python Paths (Important):**
-   Open `.opencode/plugins/llm-wiki.ts` and ensure the paths to your Python executable and `main.py` are correct for your operating system. The script currently defaults to looking for the `src/venv` directory inside your project workspace.
+3. **Verify the Python Executable:**
+   The `llm-wiki.ts` plugin is configured to look for the `llm-wiki` CLI tool. It will automatically detect if you installed it in a local `venv/` directory inside your project, and fallback to a globally installed version if not. You don't need to configure any paths if you followed Step 1!
 
 ---
 
