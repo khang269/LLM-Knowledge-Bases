@@ -1,0 +1,10 @@
+google-genai
+pyyaml
+pydantic
+python-dotenv
+markdown
+openai
+anthropic
+instructor
+groq
+python-frontmatter
