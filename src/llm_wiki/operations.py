@@ -16,6 +16,12 @@ class WikiManager:
         ensure_directories(self.config)
         self.db = StateDB(self.config.db_path)
 
+    def initialize(self):
+        """Initialize the knowledge base structure and base files."""
+        ensure_directories(self.config)
+        generate_index(self.config, self.db)
+        append_log(self.config, "Knowledge Base initialized")
+
     def flush_memory(self, context: str) -> str:
         result = memory.extract_conversation(context, self.llm)
         if "FLUSH_OK" not in result and "FLUSH_ERROR" not in result:

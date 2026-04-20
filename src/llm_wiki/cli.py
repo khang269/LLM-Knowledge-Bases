@@ -53,6 +53,7 @@ def main():
     wiki = WikiManager(config, llm)
     
     if args.command == "init":
+        wiki.initialize()
         print(f"Initialized LLM Knowledge Base in {config.root_path}")
         
     elif args.command == "ingest":

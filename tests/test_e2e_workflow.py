@@ -36,6 +36,8 @@ def test_01_init():
     assert KB_DIR.exists()
     assert (KB_DIR / "raw").exists()
     assert (KB_DIR / "wiki").exists()
+    assert (KB_DIR / "wiki" / "index.md").exists()
+    assert (KB_DIR / "wiki" / "log.md").exists()
 
 def test_02_ingest_all():
     # Copy all sample files to raw directory
