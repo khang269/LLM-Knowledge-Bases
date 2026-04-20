@@ -1,0 +1,8 @@
+{
+  "name": "opencode-llm-wiki",
+  "version": "1.0.0",
+  "description": "LLM Knowledge Base plugin for OpenCode",
+  "dependencies": {
+    "@opencode-ai/plugin": "latest"
+  }
+}
