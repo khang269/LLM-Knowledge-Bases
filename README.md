@@ -1,0 +1,149 @@
+# OpenCode LLM Knowledge Base
+
+A Python-based, tool-agnostic Local LLM Knowledge Base and Memory Compiler.
+
+Adapted from Andrej Karpathy's LLM Knowledge Base architecture and the Claude Memory Compiler, this project allows you to seamlessly ingest external documents (articles, papers) and automatically extract knowledge from your AI coding conversations into a permanently queryable, structured markdown wiki.
+
+Instead of relying on fragile RAG (Retrieval-Augmented Generation) with vector databases, this system uses **Index-Guided Retrieval**. It maintains a central `index.md` catalog of all your concepts, allowing the LLM to intelligently select which articles to read before synthesizing an answer.
+
+## Features
+
+- **Multi-Provider Support:** Works with Gemini, OpenAI, Anthropic, and Groq via the `instructor` library.
+- **Safe & Structured (No LLM File Editing):** Uses strict Pydantic schemas and a local SQLite database to track the exact state, hashes, and links of every file. The LLM never has raw write access to your filesystem, preventing hallucinated paths or broken markdown.
+- **Dual Ingestion:** Ingests raw external notes (`wiki/raw/`) and continuously flushes daily AI conversation transcripts (`wiki/daily/`).
+- **Autonomic Synthesis:** Automatically compiles raw sources into atomic Concept articles and detects cross-cutting insights to generate Connection articles.
+- **Drafting & Approval System:** New knowledge is generated into a `.drafts/` folder. You review and approve before it officially enters your knowledge base.
+- **Compounding Q&A:** Ask complex questions and the system will synthesize an answer, citing sources via `[[wikilinks]]`, and optionally save the answer permanently to a `qa/` folder to make future queries smarter.
+- **Advanced Linting:** Fast structural health checks (broken links, orphans, missing YAML) combined with optional LLM-driven contradiction hunting.
+
+## Folder Architecture
+
+The library automatically manages the following Obsidian-compatible structure:
+
+```text
+my-research/
+├── raw/                 # External source materials (articles, papers, images, repos)
+├── daily/               # Chronological AI conversation memory logs
+├── wiki/                # The compiled, LLM-managed knowledge base
+│   ├── concepts/        # Atomic knowledge articles
+│   ├── connections/     # Cross-cutting insights linking 2+ concepts
+│   ├── sources/         # Auto-generated summaries of raw inputs
+│   ├── qa/              # Filed answers to complex queries
+│   ├── index.md         # Master catalog - the core retrieval mechanism
+│   ├── log.md           # Append-only chronological build log
+│   └── .drafts/         # Articles waiting for your human approval
+└── _meta/               
+    └── state.db         # SQLite database tracking file hashes and relationships
+```
+
+## Installation
+
+1. **Clone the repository and enter the `src` directory:**
+   ```bash
+   git clone <your-repo-url>
+   cd src
+   ```
+
+2. **Create a virtual environment and install dependencies:**
+   ```bash
+   python -m venv venv
+   # On Windows
+   .\venv\Scripts\activate
+   # On Mac/Linux
+   source venv/bin/activate
+   
+   pip install -r requirements.txt
+   # Alternatively, the dependencies are:
+   # google-genai pyyaml pydantic python-dotenv markdown openai anthropic instructor groq python-frontmatter
+   ```
+
+3. **Configure your API Keys:**
+   Create a `.env` file in the `src` directory:
+   ```env
+   LLM_PROVIDER=gemini # Choose: gemini, openai, anthropic, or groq
+   
+   GEMINI_API_KEY=your_api_key_here
+   OPENAI_API_KEY=your_api_key_here
+   ANTHROPIC_API_KEY=your_api_key_here
+   GROQ_API_KEY=your_api_key_here
+   ```
+
+## Usage
+
+You can manage your knowledge base directly via the CLI. By default, it operates on a folder named `my-research` in your current directory, but you can target any project folder using the `--dir` flag.
+
+### 1. Initialization
+Bootstrap the folder structure and SQLite database for a new project:
+```bash
+python main.py --dir "my-project-kb" init
+```
+
+### 2. Ingestion (Raw Sources & Daily Logs)
+Process new external notes or updated daily conversation logs. The system hashes files to skip duplicates and extracts key concepts into the database.
+```bash
+# Ingest a specific file
+python main.py --dir "my-project-kb" ingest raw/articles/some_paper.md
+
+# Ingest all new/modified files in raw/ and daily/
+python main.py --dir "my-project-kb" ingest
+```
+
+### 3. Compilation
+Tell the LLM to review the SQLite database for concepts that have new source material. It will bundle the sources, synthesize the knowledge, and write Markdown files to the `.drafts/` folder.
+```bash
+python main.py --dir "my-project-kb" compile
+```
+
+### 4. Approval & Rejection
+Review the generated files in `wiki/.drafts/`.
+```bash
+# Approve all drafts and publish them to the live wiki
+python main.py --dir "my-project-kb" approve
+
+# Reject a specific draft with feedback (the LLM will remember this feedback next time)
+python main.py --dir "my-project-kb" reject wiki/.drafts/concept_name.md --feedback "Make it more concise and focus on the technical implementation."
+```
+
+### 5. Memory Flush (Conversation Capture)
+Pass a raw conversation transcript from an AI coding agent (like Claude Code or OpenCode) to extract architectural decisions, action items, and lessons learned. The output is appended chronologically to today's `daily/` log.
+```bash
+python main.py --dir "my-project-kb" flush path/to/transcript.txt
+```
+
+### 6. Session Context Injection
+Output the master `index.md` catalog alongside the most recent daily log. You can pipe this directly into your AI agent's system prompt so it instantly "remembers" the context of the project.
+```bash
+python main.py --dir "my-project-kb" session-context
+```
+
+### 7. Querying & Compounding Knowledge
+Ask the knowledge base complex questions. It will read the index, select the relevant articles, and synthesize an answer. Use `--file-back` to permanently save the answer to `wiki/qa/` and update the index.
+```bash
+python main.py --dir "my-project-kb" query "What is our standard authentication strategy?" --file-back
+```
+
+### 8. Linting & Health Checks
+Run static analysis to find broken links, missing YAML frontmatter, and orphan pages.
+```bash
+# Fast, free structural checks
+python main.py --dir "my-project-kb" lint
+
+# Include LLM-driven contradiction hunting (reads the whole wiki to find conflicting claims)
+python main.py --dir "my-project-kb" lint --llm
+```
+
+## Overriding Providers and Models
+
+You can dynamically override the `.env` defaults for a specific task via the CLI:
+```bash
+python main.py --provider anthropic --model claude-3-5-sonnet-latest compile
+python main.py --provider openai --model gpt-4o query "..."
+python main.py --provider groq --model llama-3.3-70b-versatile ingest
+```
+
+## Testing
+To run the automated end-to-end test suite:
+```bash
+pip install pytest pytest-asyncio
+python -m pytest tests/ -v -s
+```
