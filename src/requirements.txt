@@ -8,3 +8,5 @@ anthropic
 instructor
 groq
 python-frontmatter
+cffi
+cryptography

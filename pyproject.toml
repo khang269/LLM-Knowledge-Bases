@@ -18,7 +18,9 @@ dependencies = [
     "anthropic",
     "instructor",
     "groq",
-    "python-frontmatter"
+    "python-frontmatter",
+    "cffi",
+    "cryptography"
 ]
 
 [project.scripts]
