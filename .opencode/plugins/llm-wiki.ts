@@ -9,10 +9,10 @@ const execAsync = promisify(exec);
 export const LlmWikiPlugin: Plugin = async ({ client, directory }) => {
   const isWin = process.platform === "win32";
   
-  // Resolve the CLI command. Try to use a local venv if it exists.
+  // Resolve the CLI command. Try to use a local venv if it exists within the .opencode/engine folder.
   let cliCmd = "llm-wiki";
-  const localVenvWin = path.join(directory, "venv", "Scripts", "llm-wiki.exe");
-  const localVenvMac = path.join(directory, "venv", "bin", "llm-wiki");
+  const localVenvWin = path.join(directory, ".opencode", "engine", "venv", "Scripts", "llm-wiki.exe");
+  const localVenvMac = path.join(directory, ".opencode", "engine", "venv", "bin", "llm-wiki");
   
   if (isWin && fs.existsSync(localVenvWin)) {
     cliCmd = `"${localVenvWin}"`;

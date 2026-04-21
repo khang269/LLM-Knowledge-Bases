@@ -14,10 +14,13 @@ This guide will walk you through installing and configuring the LLM Knowledge Ba
 
 The heavy lifting (LLM calls, SQLite state tracking, Pydantic validation) is handled by a robust Python backend package.
 
-1. **Install the Package:**
-   You can install the `llm-wiki` package globally using `pipx` or locally in a virtual environment for your project:
+1. **Install the Package in the `.opencode` directory:**
+   To keep your project's main repository clean, we recommend installing the Python engine entirely inside the `.opencode/engine` folder:
    ```bash
-   # Create a virtual environment in your project
+   mkdir -p .opencode/engine
+   cd .opencode/engine
+   
+   # Create a virtual environment specifically for the knowledge base
    python -m venv venv
    
    # On Windows:
@@ -25,14 +28,14 @@ The heavy lifting (LLM calls, SQLite state tracking, Pydantic validation) is han
    # On Mac/Linux:
    source venv/bin/activate
    
-   # Install the package directly from GitHub (or local clone)
+   # Install the package directly from GitHub
    pip install git+https://github.com/khang269/LLM-Knowledge-Bases.git
    ```
 
 2. **Configure API Keys:**
-   Create a `.env` file in the root of your project:
+   Create a `.env` file inside your `.opencode/engine/` folder (or in your project root):
    ```env
-   # .env
+   # .opencode/engine/.env
    LLM_PROVIDER=gemini  # Options: gemini, openai, anthropic, groq
    
    GEMINI_API_KEY=your_gemini_api_key
@@ -64,7 +67,7 @@ OpenCode supports custom plugins written in TypeScript. We have provided a plugi
    ```
 
 3. **Verify the Python Executable:**
-   The `llm-wiki.ts` plugin is configured to look for the `llm-wiki` CLI tool. It will automatically detect if you installed it in a local `venv/` directory inside your project, and fallback to a globally installed version if not. You don't need to configure any paths if you followed Step 1!
+   The `llm-wiki.ts` plugin is pre-configured to look for the CLI tool specifically inside `.opencode/engine/venv/`. It will automatically use this isolated virtual environment. You don't need to manually configure any system paths or modify your primary project's backend!
 
 ---
 
