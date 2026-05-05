@@ -28,5 +28,5 @@ dependencies = [
 llm-wiki = "llm_wiki.cli:main"
 
 [tool.setuptools]
-packages = ["llm_wiki", "llm_wiki.pipeline"]
 package-dir = {"" = "src"}
+packages = ["llm_wiki", "llm_wiki.pipeline"]
