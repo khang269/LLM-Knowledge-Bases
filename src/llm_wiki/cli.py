@@ -1,13 +1,21 @@
 import argparse
 from pathlib import Path
-from dotenv import load_dotenv
+import dotenv
+import os
 
-from .config import default_config
+from .config import default_config, GLOBAL_ENV_FILE, ensure_global_config
 from .llm import LLMClient
 from .operations import WikiManager
 
+def set_global_env(key: str, value: str):
+    ensure_global_config()
+    dotenv.set_key(str(GLOBAL_ENV_FILE), key, value)
+    print(f"Successfully set {key} in global configuration ({GLOBAL_ENV_FILE}).")
+
 def main():
-    load_dotenv()
+    if GLOBAL_ENV_FILE.exists():
+        dotenv.load_dotenv(GLOBAL_ENV_FILE)
+    dotenv.load_dotenv()
     
     parser = argparse.ArgumentParser(description="LLM Knowledge Base (Wiki) Manager")
     parser.add_argument("--provider", type=str, help="LLM Provider (gemini, openai, anthropic, groq)", default=None)
@@ -46,6 +54,17 @@ def main():
     flush_parser.add_argument("transcript", type=str, help="Path to the conversation transcript file")
 
     subparsers.add_parser("session-context", help="Output current wiki index and recent daily log for session context injection")
+    
+    config_parser = subparsers.add_parser("config", help="Manage global configuration and API keys")
+    config_sub = config_parser.add_subparsers(dest="config_command", help="Config commands")
+    
+    config_set = config_sub.add_parser("set", help="Set a configuration value (provider, model)")
+    config_set.add_argument("key", choices=["provider", "model"], help="The key to set")
+    config_set.add_argument("value", type=str, help="The value to set")
+    
+    config_set_key = config_sub.add_parser("set-key", help="Set an API key globally")
+    config_set_key.add_argument("provider", choices=["GEMINI_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GROQ_API_KEY"], help="The API key to set")
+    config_set_key.add_argument("value", type=str, help="The API key value")
     
     args = parser.parse_args()
     
@@ -133,6 +152,17 @@ def main():
     elif args.command == "session-context":
         print(wiki.get_session_context())
         
+    elif args.command == "config":
+        if args.config_command == "set":
+            if args.key == "provider":
+                set_global_env("LLM_PROVIDER", args.value)
+            elif args.key == "model":
+                set_global_env("LLM_MODEL", args.value)
+        elif args.config_command == "set-key":
+            set_global_env(args.provider, args.value)
+        else:
+            config_parser.print_help()
+            
     else:
         parser.print_help()
 

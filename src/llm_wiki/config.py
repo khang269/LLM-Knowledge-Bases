@@ -2,6 +2,14 @@ import os
 from pathlib import Path
 from pydantic import BaseModel, Field
 
+GLOBAL_CONFIG_DIR = Path.home() / ".llm-wiki"
+GLOBAL_ENV_FILE = GLOBAL_CONFIG_DIR / ".env"
+
+def ensure_global_config():
+    GLOBAL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    if not GLOBAL_ENV_FILE.exists():
+        GLOBAL_ENV_FILE.touch()
+
 class WikiConfig(BaseModel):
     root_path: Path = Field(default_factory=lambda: Path(os.getcwd()) / "my-research")
     

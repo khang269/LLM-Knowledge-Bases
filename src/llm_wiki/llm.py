@@ -147,6 +147,7 @@ class LLMClient:
     def __init__(self, provider: Optional[str] = None, model: Optional[str] = None):
         """Initialize the LLM client by detecting the provider."""
         provider = provider or os.environ.get("LLM_PROVIDER", "gemini").lower()
+        model = model or os.environ.get("LLM_MODEL")
         
         print(f"Initializing LLMClient with provider: {provider}")
 
