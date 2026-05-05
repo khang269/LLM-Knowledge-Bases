@@ -51,36 +51,32 @@ We provide a native TypeScript plugin for OpenCode that automates session extrac
 
 ## Standalone CLI Installation
 
-You can install the engine as a globally available pip package:
+We provide two cross-platform installation scripts that will seamlessly install the `llm-wiki` executable globally to your system PATH using `pipx`.
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/khang269/LLM-Knowledge-Bases.git
-   cd LLM-Knowledge-Bases
-   ```
+**On Mac / Linux:**
+```bash
+curl -sL https://raw.githubusercontent.com/khang269/LLM-Knowledge-Bases/main/install.sh | bash
+```
 
-2. **Install the package (Recommended via a virtual environment):**
-   ```bash
-   python -m venv venv
-   
-   # On Windows
-   .\venv\Scripts\activate
-   # On Mac/Linux
-   source venv/bin/activate
-   
-   pip install -e .
-   ```
+**On Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/khang269/LLM-Knowledge-Bases/main/install.ps1 -OutFile install.ps1; .\install.ps1
+```
 
-3. **Configure your API Keys:**
-   Create a `.env` file in your working directory (or use environment variables):
-   ```env
-   LLM_PROVIDER=gemini # Choose: gemini, openai, anthropic, or groq
-   
-   GEMINI_API_KEY=your_api_key_here
-   OPENAI_API_KEY=your_api_key_here
-   ANTHROPIC_API_KEY=your_api_key_here
-   GROQ_API_KEY=your_groq_api_key
-   ```
+*(Note: These scripts will automatically install Python 3 and pipx if they are missing from your system).*
+
+### Global Configuration
+Once installed globally, you don't need a `.env` file in every single project! You can securely set your API keys and provider preferences globally using the CLI:
+
+```bash
+# Set your default provider and model
+llm-wiki config set provider anthropic
+llm-wiki config set model claude-3-5-sonnet-latest
+
+# Set your API keys (These are stored securely in ~/.llm-wiki/.env)
+llm-wiki config set-key ANTHROPIC_API_KEY your_api_key_here
+llm-wiki config set-key GEMINI_API_KEY your_api_key_here
+```
 
 ---
 
