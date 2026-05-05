@@ -105,6 +105,22 @@ export const LlmWikiPlugin: Plugin = async ({ client, directory }) => {
       }),
 
       tool({
+        name: "kb_import",
+        description: "Download and convert a web URL, YouTube URL, PDF, Word, or Excel document into Markdown using MarkItDown.",
+        args: {
+          source: tool.schema.string(),
+          dest: tool.schema.string().optional().describe("Destination folder ('raw' or 'daily'). Defaults to 'raw'."),
+          subfolder: tool.schema.string().optional().describe("Subfolder inside raw/ (e.g. 'papers', 'videos')."),
+        },
+        async execute({ source, dest, subfolder }) {
+          let cmd = `import "${source}"`;
+          if (dest) cmd += ` --dest ${dest}`;
+          if (subfolder) cmd += ` --subfolder "${subfolder}"`;
+          return await runCmd(cmd);
+        },
+      }),
+
+      tool({
         name: "kb_ingest",
         description: "Ingest a new raw source file into the LLM Knowledge Base. Leave source empty to ingest all pending.",
         args: {
@@ -115,6 +131,22 @@ export const LlmWikiPlugin: Plugin = async ({ client, directory }) => {
           let cmd = `ingest`;
           if (source) cmd += ` "${source}"`;
           if (force) cmd += ` --force`;
+          return await runCmd(cmd);
+        },
+      }),
+
+      tool({
+        name: "kb_import",
+        description: "Download and convert a web URL, YouTube URL, PDF, Word, or Excel document into Markdown using MarkItDown.",
+        args: {
+          source: tool.schema.string(),
+          dest: tool.schema.string().optional().describe("Destination folder ('raw' or 'daily'). Defaults to 'raw'."),
+          subfolder: tool.schema.string().optional().describe("Subfolder inside raw/ (e.g. 'papers', 'videos')."),
+        },
+        async execute({ source, dest, subfolder }) {
+          let cmd = `import "${source}"`;
+          if (dest) cmd += ` --dest ${dest}`;
+          if (subfolder) cmd += ` --subfolder "${subfolder}"`;
           return await runCmd(cmd);
         },
       }),

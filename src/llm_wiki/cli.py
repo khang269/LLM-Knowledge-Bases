@@ -33,6 +33,11 @@ def main():
     ingest_parser.add_argument("source", type=str, nargs="?", help="Path to the raw source file", default=None)
     ingest_parser.add_argument("--force", action="store_true", help="Force ingestion even if already ingested")
     
+    import_parser = subparsers.add_parser("import", help="Import a file, URL, or YouTube video using MarkItDown and convert to markdown.")
+    import_parser.add_argument("source", type=str, help="The URL or local file path to import")
+    import_parser.add_argument("--dest", type=str, choices=["raw", "daily"], default="raw", help="Destination folder (raw or daily)")
+    import_parser.add_argument("--subfolder", type=str, default=None, help="Subfolder inside raw/ (e.g., 'papers', 'videos')")
+    
     compile_parser = subparsers.add_parser("compile", help="Compile concepts into draft articles")
     compile_parser.add_argument("--force", action="store_true", help="Force compile even if manually edited")
     
@@ -78,6 +83,11 @@ def main():
         wiki.initialize()
         print(f"Initialized LLM Knowledge Base in {config.root_path}")
         
+    elif args.command == "import":
+        print(f"Importing {args.source} via MarkItDown...")
+        out_path = wiki.import_document(args.source, args.dest, args.subfolder)
+        print(f"\nImport successful! Saved to: {out_path}")
+
     elif args.command == "build":
         print("Running 1-Click Build Workflow...")
         published = wiki.build(force=args.force)
@@ -97,6 +107,11 @@ def main():
         else:
             print("Ingesting all raw notes...")
             wiki.ingest_all(force=args.force)
+            
+    elif args.command == "import":
+        print(f"Importing {args.source} via MarkItDown...")
+        out_path = wiki.import_document(args.source, args.dest, args.subfolder)
+        print(f"\nImport successful! Saved to: {out_path}")
             
     elif args.command == "compile":
         print("Compiling concepts to drafts...")

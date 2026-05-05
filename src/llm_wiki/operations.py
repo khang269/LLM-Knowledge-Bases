@@ -6,7 +6,7 @@ from .config import WikiConfig
 from .state import StateDB
 from .llm import LLMClient
 from .storage import ensure_directories, write_note, sanitize_filename
-from .pipeline import ingest, compile, lint, memory
+from .pipeline import ingest, compile, lint, memory, importer
 from .indexer import generate_index, append_log
 
 class WikiManager:
@@ -21,6 +21,12 @@ class WikiManager:
         ensure_directories(self.config)
         generate_index(self.config, self.db)
         append_log(self.config, "Knowledge Base initialized")
+
+    def import_document(self, source: str, dest: str, subfolder: Optional[str] = None) -> Path:
+        """Fetch a document or URL via MarkItDown and save to the knowledge base."""
+        out_path = importer.import_source(source, dest, self.config, self.llm, subfolder)
+        append_log(self.config, f"Imported {source} via MarkItDown to {out_path.name}")
+        return out_path
 
     def flush_memory(self, context: str) -> str:
         result = memory.extract_conversation(context, self.llm)

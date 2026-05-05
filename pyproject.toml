@@ -20,7 +20,8 @@ dependencies = [
     "groq",
     "python-frontmatter",
     "cffi",
-    "cryptography"
+    "cryptography",
+    "markitdown[all]"
 ]
 
 [project.scripts]
