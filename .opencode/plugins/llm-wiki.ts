@@ -58,9 +58,10 @@ export const LlmWikiPlugin: Plugin = async ({ client, directory }) => {
       // Auto-flush memory automatically using the conversation context available in the event payload
       try {
         if (event && event.transcript_path) {
+          client.app.log({ level: "info", message: "Starting auto-flush from transcript path..." });
           await runCmd(`flush "${event.transcript_path}"`);
-          client.app.log({ level: "info", message: "Auto-flushed session memory." });
         } else if (event && event.messages) {
+          client.app.log({ level: "info", message: "Starting auto-flush from messages array..." });
           const fs = await import("fs/promises");
           const path = await import("path");
           const tempPath = path.join(directory, "temp_transcript.txt");
@@ -68,7 +69,6 @@ export const LlmWikiPlugin: Plugin = async ({ client, directory }) => {
           await fs.writeFile(tempPath, text, "utf-8");
           await runCmd(`flush "${tempPath}"`);
           await fs.unlink(tempPath);
-          client.app.log({ level: "info", message: "Auto-flushed session memory from messages." });
         }
       } catch (e) {
         client.app.log({ level: "error", message: `Failed to auto-flush memory: ${e}` });
