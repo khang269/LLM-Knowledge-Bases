@@ -103,6 +103,7 @@ You don't need to do anything. As you chat with OpenCode, the plugin listens to 
 
 ### 2. Autonomous AI Tools (Active)
 OpenCode now has access to custom tools it can use during your conversations. You can explicitly ask OpenCode to:
+- *"Import this YouTube video into my daily log."* -> Triggers `kb_import`
 - *"Sync my entire knowledge base automatically."* -> Triggers `kb_build`
 - *"Process the new files in my raw folder into drafts."* -> Triggers `kb_ingest`
 - *"Compile the drafts for my knowledge base."* -> Triggers `kb_compile`

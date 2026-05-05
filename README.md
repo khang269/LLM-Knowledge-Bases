@@ -12,6 +12,8 @@ Instead of relying on fragile RAG (Retrieval-Augmented Generation) with vector d
 - **Multi-Provider Support:** Works with Gemini, OpenAI, Anthropic, and Groq via the `instructor` library.
 - **Safe & Structured (No LLM File Editing):** Uses strict Pydantic schemas and a local SQLite database to track the exact state, hashes, and links of every file. The LLM never has raw write access to your filesystem, preventing hallucinated paths or broken markdown.
 - **Dual Ingestion:** Ingests raw external notes (`wiki/raw/`) and continuously flushes daily AI conversation transcripts (`wiki/daily/`).
+- **Multi-Format Imports:** Uses `microsoft/markitdown` to natively convert PDFs, Word docs, Excel, YouTube transcripts, and raw web URLs directly into Markdown.
+- **LLM Vision OCR:** Automatically routes images and diagrams found inside imported PDFs/PPTs through your chosen LLM provider (Gemini/Anthropic/OpenAI) to generate rich Markdown descriptions.
 - **Autonomic Synthesis:** Automatically compiles raw sources into atomic Concept articles and detects cross-cutting insights to generate Connection articles.
 - **Drafting & Approval System:** New knowledge is generated into a `.drafts/` folder. You review and approve before it officially enters your knowledge base.
 - **Compounding Q&A:** Ask complex questions and the system will synthesize an answer, citing sources via `[[wikilinks]]`, and optionally save the answer permanently to a `qa/` folder to make future queries smarter.
@@ -90,13 +92,26 @@ Bootstrap the folder structure and SQLite database for a new project:
 llm-wiki --dir "my-project-kb" init
 ```
 
-### 2. 1-Click Automatic Build (Recommended)
+### 2. Import External Documents (PDFs, Web URLs, YouTube)
+Download and convert external formats directly into your knowledge base using the integrated `markitdown` pipeline. It supports Vision OCR for images using your configured LLM provider.
+```bash
+# Convert a local PDF into the raw/papers folder
+llm-wiki --dir "my-project-kb" import /path/to/paper.pdf --dest raw --subfolder papers
+
+# Download and convert a YouTube video transcript into the raw/videos folder
+llm-wiki --dir "my-project-kb" import "https://www.youtube.com/watch?v=..." --dest raw --subfolder videos
+
+# Download a web article straight into today's daily log (wiki/daily/YYYY-MM-DD/)
+llm-wiki --dir "my-project-kb" import "https://example.com/article" --dest daily
+```
+
+### 3. 1-Click Automatic Build (Recommended)
 If you want to bypass the manual review queue and instantly sync everything, use the `build` command. This will recursively ingest all files, extract their concepts, auto-compile the relationships, and publish them directly to your live wiki.
 ```bash
 llm-wiki --dir "my-project-kb" build
 ```
 
-### 3. The Staged Workflow (For strict control)
+### 4. The Staged Workflow (For strict control)
 If you prefer to manually review everything before it touches your wiki, you can run the pipeline step-by-step:
 
 **A. Ingest:** Extracts concepts to the database and creates Source Summaries in the `.drafts/` folder.
@@ -118,7 +133,7 @@ llm-wiki --dir "my-project-kb" approve
 llm-wiki --dir "my-project-kb" reject wiki/.drafts/concept_name.md --feedback "Make it more concise."
 ```
 
-### 4. Memory Flush (Conversation Capture)
+### 5. Memory Flush (Conversation Capture)
 Pass a raw conversation transcript from an AI coding agent to extract architectural decisions, action items, and lessons learned. The output is appended chronologically to today's `daily/` log.
 ```bash
 llm-wiki --dir "my-project-kb" flush path/to/transcript.txt
