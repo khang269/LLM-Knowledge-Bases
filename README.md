@@ -94,33 +94,35 @@ Bootstrap the folder structure and SQLite database for a new project:
 llm-wiki --dir "my-project-kb" init
 ```
 
-### 2. Ingestion (Raw Sources & Daily Logs)
-Process new external notes or updated daily conversation logs. The system hashes files to skip duplicates and extracts key concepts into the database.
+### 2. 1-Click Automatic Build (Recommended)
+If you want to bypass the manual review queue and instantly sync everything, use the `build` command. This will recursively ingest all files, extract their concepts, auto-compile the relationships, and publish them directly to your live wiki.
 ```bash
-# Ingest a specific file
-llm-wiki --dir "my-project-kb" ingest raw/articles/some_paper.md
+llm-wiki --dir "my-project-kb" build
+```
 
-# Ingest all new/modified files in raw/ and daily/
+### 3. The Staged Workflow (For strict control)
+If you prefer to manually review everything before it touches your wiki, you can run the pipeline step-by-step:
+
+**A. Ingest:** Extracts concepts to the database and creates Source Summaries in the `.drafts/` folder.
+```bash
 llm-wiki --dir "my-project-kb" ingest
 ```
 
-### 3. Compilation
-Tell the LLM to review the SQLite database for concepts that have new source material. It will bundle the sources, synthesize the knowledge, and write Markdown files to the `.drafts/` folder.
+**B. Compile:** Analyzes the database and writes synthesized Concept and Connection articles into the `.drafts/` folder.
 ```bash
 llm-wiki --dir "my-project-kb" compile
 ```
 
-### 4. Approval & Rejection
-Review the generated files in `wiki/.drafts/`.
+**C. Approve & Reject:** Review the generated Markdown files in `wiki/.drafts/`.
 ```bash
-# Approve all drafts and publish them to the live wiki
+# Publish all drafts to the live wiki
 llm-wiki --dir "my-project-kb" approve
 
-# Reject a specific draft with feedback (the LLM will remember this feedback next time)
-llm-wiki --dir "my-project-kb" reject wiki/.drafts/concept_name.md --feedback "Make it more concise and focus on the technical implementation."
+# Or reject a draft with feedback for the LLM to learn from next time
+llm-wiki --dir "my-project-kb" reject wiki/.drafts/concept_name.md --feedback "Make it more concise."
 ```
 
-### 5. Memory Flush (Conversation Capture)
+### 4. Memory Flush (Conversation Capture)
 Pass a raw conversation transcript from an AI coding agent to extract architectural decisions, action items, and lessons learned. The output is appended chronologically to today's `daily/` log.
 ```bash
 llm-wiki --dir "my-project-kb" flush path/to/transcript.txt

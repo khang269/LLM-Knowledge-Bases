@@ -40,11 +40,11 @@ def _normalize_concept_names(raw_names: List[str], db: StateDB) -> List[str]:
             normalized.append(canonical)
     return normalized
 
-def _create_source_summary_page(path: Path, src_meta: dict, result: AnalysisResult, config: WikiConfig) -> Path:
-    """Generate wiki/sources/{Title}.md from AnalysisResult."""
+def _create_source_summary_page(path: Path, src_meta: dict, result: AnalysisResult, config: WikiConfig, db: StateDB) -> Path:
+    """Generate .drafts/{Title}.md from AnalysisResult."""
     title = src_meta.get("title") or path.stem.replace("-", " ").title()
     safe_name = sanitize_filename(title)
-    out_path = config.sources_dir / f"{safe_name}.md"
+    out_path = config.drafts_dir / f"{safe_name}.md"
     
     now = datetime.now().strftime("%Y-%m-%d")
     try:
@@ -59,7 +59,7 @@ def _create_source_summary_page(path: Path, src_meta: dict, result: AnalysisResu
     out_meta = {
         "title": title,
         "tags": ["source"],
-        "status": "published",
+        "status": "draft",
         "source_file": rel_raw,
         "quality": result.quality,
         "created": now,
@@ -79,7 +79,23 @@ def _create_source_summary_page(path: Path, src_meta: dict, result: AnalysisResu
     if source_url:
         body_parts.append(f"- **URL:** {source_url}")
 
-    write_note(out_path, out_meta, "\n".join(body_parts))
+    body = "\n".join(body_parts)
+    write_note(out_path, out_meta, body)
+    
+    try:
+        draft_rel = str(out_path.relative_to(config.root_path))
+    except ValueError:
+        draft_rel = str(out_path.name)
+        
+    from ..models import WikiArticleRecord
+    db.upsert_article(WikiArticleRecord(
+        path=draft_rel,
+        title=title,
+        sources=[rel_raw],
+        content_hash=content_hash(body),
+        is_draft=True
+    ))
+    
     return out_path
 
 def ingest_note(path: Path, config: WikiConfig, client: LLMClient, db: StateDB, force: bool = False) -> Optional[AnalysisResult]:
@@ -136,7 +152,7 @@ def ingest_note(path: Path, config: WikiConfig, client: LLMClient, db: StateDB, 
 
     # Create source summary
     try:
-        _create_source_summary_page(path, meta, result, config)
+        _create_source_summary_page(path, meta, result, config, db)
     except Exception as e:
         print(f"Source summary page failed for {path.name}: {e}")
 

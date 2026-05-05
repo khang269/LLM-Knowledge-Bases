@@ -35,16 +35,21 @@ class WikiManager:
     def ingest_note(self, source_path: Path, force: bool = False):
         result = ingest.ingest_note(source_path, self.config, self.llm, self.db, force=force)
         if result:
-            generate_index(self.config, self.db)
-            append_log(self.config, f"Ingested {source_path.name}")
+            append_log(self.config, f"Ingested {source_path.name} to drafts")
         return result
 
     def ingest_all(self, force: bool = False):
         processed = ingest.ingest_all(self.config, self.llm, self.db, force=force)
         if processed:
-            generate_index(self.config, self.db)
-            append_log(self.config, f"Batch ingested {len(processed)} notes")
+            append_log(self.config, f"Batch ingested {len(processed)} notes to drafts")
         return processed
+
+    def build(self, force: bool = False):
+        """1-Click Automatic Workflow: Ingest all, compile, and approve automatically."""
+        processed = self.ingest_all(force=force)
+        drafts = self.compile(force=force)
+        published = self.approve()
+        return published
 
     def compile(self, force: bool = False):
         draft_paths = compile.compile_concepts(self.config, self.llm, self.db, force=force)

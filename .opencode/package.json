@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "description": "LLM Knowledge Base plugin for OpenCode",
   "dependencies": {
-    "@opencode-ai/plugin": "latest"
+    "@opencode-ai/plugin": "1.4.11"
   }
 }

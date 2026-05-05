@@ -26,9 +26,13 @@ export const LlmWikiPlugin: Plugin = async ({ client, directory }) => {
   const runCmd = async (command: string) => {
     try {
       const fullCmd = `${cliCmd} --dir "${kbDir}" ${command}`;
+      client.app.log({ level: "info", message: `Executing command: ${fullCmd}` });
       const { stdout, stderr } = await execAsync(fullCmd, { cwd: directory });
+      if (stdout) client.app.log({ level: "info", message: `Stdout: ${stdout}` });
+      if (stderr) client.app.log({ level: "warn", message: `Stderr: ${stderr}` });
       return stdout || stderr || "Command executed successfully.";
     } catch (e: any) {
+      client.app.log({ level: "error", message: `Error executing command: ${e.message}\n${e.stderr || ""}` });
       return `Error: ${e.message}\n${e.stderr || ""}`;
     }
   };
@@ -79,6 +83,19 @@ export const LlmWikiPlugin: Plugin = async ({ client, directory }) => {
         args: {},
         async execute() {
           return await runCmd(`init`);
+        },
+      }),
+
+      tool({
+        name: "kb_build",
+        description: "1-Click Automatic Workflow: Ingest all new sources, compile concepts, and auto-approve everything to the live wiki. Use this to sync everything at once.",
+        args: {
+          force: tool.schema.boolean().optional(),
+        },
+        async execute({ force }) {
+          let cmd = `build`;
+          if (force) cmd += ` --force`;
+          return await runCmd(cmd);
         },
       }),
 

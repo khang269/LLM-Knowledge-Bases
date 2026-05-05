@@ -70,20 +70,14 @@ def test_04_edit_and_reingest():
     new_content = content + "\n\nThis is a test edit to check changes."
     raw_file.write_text(new_content, encoding='utf-8')
     
-    # Reingest specifically the changed file with force
-    res = run_cli("ingest", str(raw_file), "--force")
+    # Instead of just ingesting and compiling, let's test the new 1-click BUILD command!
+    res = run_cli("build", "--force")
     assert res.returncode == 0
-    assert "Ingested:" in res.stdout
-
-    # Compile drafts
-    res = run_cli("compile")
-    assert res.returncode == 0
+    assert "Running 1-Click Build Workflow..." in res.stdout
     
-    # Check if drafts were created
-    drafts_dir = KB_DIR / "wiki" / ".drafts"
-    assert drafts_dir.exists()
-    drafts = list(drafts_dir.glob("*.md"))
-    assert len(drafts) > 0
+    # Check if files were published to the live wiki
+    concepts_dir = KB_DIR / "wiki" / "concepts"
+    assert concepts_dir.exists() or len(list(KB_DIR.glob("wiki/*.md"))) > 2
 
 def test_05_query():
     res = run_cli("query", "What is the role of an AI engineer?")

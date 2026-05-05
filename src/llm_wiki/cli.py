@@ -18,6 +18,9 @@ def main():
     
     subparsers.add_parser("init", help="Initialize a new LLM Knowledge Base in the specified directory")
     
+    build_parser = subparsers.add_parser("build", help="1-Click Automatic Workflow: Ingest all, compile concepts, and approve everything automatically.")
+    build_parser.add_argument("--force", action="store_true", help="Force ingestion and compilation even if unmodified")
+    
     ingest_parser = subparsers.add_parser("ingest", help="Ingest a new raw source into the wiki (or all if none specified)")
     ingest_parser.add_argument("source", type=str, nargs="?", help="Path to the raw source file", default=None)
     ingest_parser.add_argument("--force", action="store_true", help="Force ingestion even if already ingested")
@@ -55,6 +58,14 @@ def main():
     if args.command == "init":
         wiki.initialize()
         print(f"Initialized LLM Knowledge Base in {config.root_path}")
+        
+    elif args.command == "build":
+        print("Running 1-Click Build Workflow...")
+        published = wiki.build(force=args.force)
+        if published:
+            print(f"\nBuild complete! {len(published)} files updated and published to the live wiki.")
+        else:
+            print("\nBuild complete! No new updates were needed.")
         
     elif args.command == "ingest":
         if args.source:

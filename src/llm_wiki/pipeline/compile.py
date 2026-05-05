@@ -195,9 +195,12 @@ def approve_drafts(config: WikiConfig, db: StateDB, paths: Optional[List[Path]] 
         meta, body = parse_note(draft_path)
         
         is_connection = "connection" in meta.get("tags", [])
+        is_source = "source" in meta.get("tags", [])
         
         if is_connection:
             target = config.connections_dir / draft_path.name
+        elif is_source:
+            target = config.sources_dir / draft_path.name
         else:
             target = config.wiki_path / draft_path.name
             
