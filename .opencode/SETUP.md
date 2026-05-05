@@ -12,37 +12,45 @@ This guide will walk you through installing and configuring the LLM Knowledge Ba
 
 ## Step 1: Set Up the Python Engine
 
-The heavy lifting (LLM calls, SQLite state tracking, Pydantic validation) is handled by a robust Python backend package.
+The heavy lifting (LLM calls, SQLite state tracking, Pydantic validation) is handled by the `llm-wiki` Python package.
 
-1. **Install the Package in the `.opencode` directory:**
-   To keep your project's main repository clean, we recommend installing the Python engine entirely inside the `.opencode/engine` folder:
-   ```bash
-   mkdir -p .opencode/engine
-   cd .opencode/engine
-   
-   # Create a virtual environment specifically for the knowledge base
-   python -m venv venv
-   
-   # On Windows:
-   .\venv\Scripts\activate
-   # On Mac/Linux:
-   source venv/bin/activate
-   
-   # Install the package directly from GitHub
-   pip install git+https://github.com/khang269/LLM-Knowledge-Bases.git
-   ```
+### Option A: Global Installation (Recommended)
+If you install the engine globally using `pipx`, you can use it across **all** your OpenCode projects without needing to reinstall it every time.
 
-2. **Configure API Keys:**
-   Create a `.env` file inside your `.opencode/engine/` folder (or in your project root):
-   ```env
-   # .opencode/engine/.env
-   LLM_PROVIDER=gemini  # Options: gemini, openai, anthropic, groq
-   
-   GEMINI_API_KEY=your_gemini_api_key
-   OPENAI_API_KEY=your_openai_api_key
-   ANTHROPIC_API_KEY=your_anthropic_api_key
-   GROQ_API_KEY=your_groq_api_key
-   ```
+**On Mac / Linux:**
+```bash
+curl -sL https://raw.githubusercontent.com/khang269/LLM-Knowledge-Bases/main/install.sh | bash
+```
+
+**On Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/khang269/LLM-Knowledge-Bases/main/install.ps1 -OutFile install.ps1; .\install.ps1
+```
+
+Configure your API keys globally so all your projects can share them:
+```bash
+llm-wiki config set provider anthropic
+llm-wiki config set-key ANTHROPIC_API_KEY your_api_key_here
+```
+
+### Option B: Local Isolated Installation
+If you prefer to keep the engine completely isolated within this specific project, install it inside the `.opencode/engine` folder:
+```bash
+mkdir -p .opencode/engine
+cd .opencode/engine
+
+# Create a virtual environment specifically for the knowledge base
+python -m venv venv
+
+# On Windows:
+.\venv\Scripts\activate
+# On Mac/Linux:
+source venv/bin/activate
+
+# Install the package directly from GitHub
+pip install git+https://github.com/khang269/LLM-Knowledge-Bases.git
+```
+*Note: If you use this local method, you must create a `.env` file inside `.opencode/engine/` to hold your API keys instead of using the global config.*
 
 ---
 
@@ -60,14 +68,14 @@ OpenCode supports custom plugins written in TypeScript. We have provided a plugi
    ```
 
 2. **Install Plugin Dependencies:**
-   OpenCode loads external packages using a local `package.json`. Navigate to the `.opencode` directory and install the dependencies. OpenCode normally runs `bun install` on startup, but you can do it manually to be safe:
+   OpenCode loads external packages using a local `package.json`. Navigate to the `.opencode` directory and install the dependencies:
    ```bash
    cd .opencode
    bun install
    ```
 
-3. **Verify the Python Executable:**
-   The `llm-wiki.ts` plugin is pre-configured to look for the CLI tool specifically inside `.opencode/engine/venv/`. It will automatically use this isolated virtual environment. You don't need to manually configure any system paths or modify your primary project's backend!
+3. **Verify the Executable:**
+   The `llm-wiki.ts` plugin is smart! On startup, it checks if you have a local `.opencode/engine/venv` installed. If it finds one, it runs totally isolated. If it doesn't find one, it safely falls back to using your global system `llm-wiki` installation. You don't need to configure any paths manually!
 
 ---
 
