@@ -44,10 +44,12 @@ def _normalize_concept_names(raw_names: List[str], db: StateDB) -> List[str]:
     return normalized
 
 def _create_source_summary_page(path: Path, src_meta: dict, result: AnalysisResult, config: WikiConfig, db: StateDB) -> Path:
-    """Generate .drafts/{Title}.md from AnalysisResult."""
+    """Generate .drafts/sources/{filename}.md from AnalysisResult."""
     title = src_meta.get("title") or path.stem.replace("-", " ").title()
-    safe_name = sanitize_filename(title)
-    out_path = config.drafts_dir / f"{safe_name}.md"
+    # Use the original filename for the draft file to guarantee uniqueness in drafts
+    out_path = config.drafts_sources_dir / f"{path.name}"
+    if out_path.suffix != ".md":
+        out_path = out_path.with_suffix(".md")
     
     now = datetime.now().strftime("%Y-%m-%d")
     try:
@@ -96,6 +98,7 @@ def _create_source_summary_page(path: Path, src_meta: dict, result: AnalysisResu
         title=title,
         sources=[rel_raw],
         content_hash=content_hash(body),
+        article_type="source",
         is_draft=True
     ))
     

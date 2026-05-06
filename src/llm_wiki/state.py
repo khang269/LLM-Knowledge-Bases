@@ -35,11 +35,17 @@ class StateDB:
                     title TEXT,
                     sources TEXT,
                     content_hash TEXT,
+                    article_type TEXT,
                     is_draft BOOLEAN,
                     created_at TIMESTAMP,
                     updated_at TIMESTAMP
                 )
             """)
+            # Migration: check if article_type column exists
+            cur = self.conn.execute("PRAGMA table_info(articles)")
+            cols = [row["name"] for row in cur.fetchall()]
+            if "article_type" not in cols:
+                self.conn.execute("ALTER TABLE articles ADD COLUMN article_type TEXT DEFAULT 'concept'")
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS concepts (
                     source_path TEXT,
@@ -150,9 +156,9 @@ class StateDB:
             existing = cur.fetchone()
             created_at = existing["created_at"] if existing else now
             self.conn.execute("""
-                INSERT OR REPLACE INTO articles (path, title, sources, content_hash, is_draft, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (record.path, record.title, sources_json, record.content_hash, record.is_draft, created_at, now))
+                INSERT OR REPLACE INTO articles (path, title, sources, content_hash, article_type, is_draft, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (record.path, record.title, sources_json, record.content_hash, record.article_type, record.is_draft, created_at, now))
 
     def get_article(self, path: str) -> Optional[WikiArticleRecord]:
         with self._lock:

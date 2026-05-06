@@ -42,6 +42,18 @@ class WikiConfig(BaseModel):
         return self.wiki_path / ".drafts"
 
     @property
+    def drafts_sources_dir(self) -> Path:
+        return self.drafts_dir / "sources"
+
+    @property
+    def drafts_concepts_dir(self) -> Path:
+        return self.drafts_dir / "concepts"
+
+    @property
+    def drafts_connections_dir(self) -> Path:
+        return self.drafts_dir / "connections"
+
+    @property
     def sources_dir(self) -> Path:
         return self.wiki_path / "sources"
         

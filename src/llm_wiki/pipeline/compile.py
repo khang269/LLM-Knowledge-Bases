@@ -112,7 +112,7 @@ def _compile_single_concept(name: str, config: WikiConfig, client: LLMClient, db
             print(f"Failed to write '{name}': {e}")
             return None
 
-    draft_path = config.drafts_dir / f"{safe_name}.md"
+    draft_path = config.drafts_concepts_dir / f"{safe_name}.md"
     
     if is_stub and not source_paths:
         main_article = result
@@ -138,6 +138,7 @@ def _compile_single_concept(name: str, config: WikiConfig, client: LLMClient, db
         title=main_article.title,
         sources=source_paths,
         content_hash=content_hash(body),
+        article_type="concept",
         is_draft=True
     ))
     drafts_produced = [draft_path]
@@ -146,7 +147,7 @@ def _compile_single_concept(name: str, config: WikiConfig, client: LLMClient, db
     if not is_stub and source_paths and hasattr(result, 'connections'):
         for conn in result.connections:
             conn_safe = sanitize_filename(conn.title)
-            conn_draft_path = config.drafts_dir / f"{conn_safe}.md"
+            conn_draft_path = config.drafts_connections_dir / f"{conn_safe}.md"
             conn_meta = {
                 "title": conn.title,
                 "connects": conn.connects,
@@ -167,6 +168,7 @@ def _compile_single_concept(name: str, config: WikiConfig, client: LLMClient, db
                 title=conn.title,
                 sources=source_paths,
                 content_hash=content_hash(conn.summary),
+                article_type="connection",
                 is_draft=True
             ))
             drafts_produced.append(conn_draft_path)
@@ -196,7 +198,16 @@ def compile_concepts(config: WikiConfig, client: LLMClient, db: StateDB, force: 
 
 def approve_drafts(config: WikiConfig, db: StateDB, paths: Optional[List[Path]] = None) -> List[Path]:
     if paths is None:
-        paths = list(config.drafts_dir.rglob("*.md")) if config.drafts_dir.exists() else []
+        paths = []
+        if config.drafts_sources_dir.exists():
+            paths.extend(list(config.drafts_sources_dir.rglob("*.md")))
+        if config.drafts_concepts_dir.exists():
+            paths.extend(list(config.drafts_concepts_dir.rglob("*.md")))
+        if config.drafts_connections_dir.exists():
+            paths.extend(list(config.drafts_connections_dir.rglob("*.md")))
+        # Legacy support for flat drafts folder
+        if config.drafts_dir.exists():
+            paths.extend([p for p in config.drafts_dir.glob("*.md") if p.is_file()])
 
     published = []
     for draft_path in paths:
@@ -205,46 +216,55 @@ def approve_drafts(config: WikiConfig, db: StateDB, paths: Optional[List[Path]] 
 
         meta, body = parse_note(draft_path)
         
-        is_connection = "connection" in meta.get("tags", [])
-        is_source = "source" in meta.get("tags", [])
-        
-        if is_connection:
-            target = config.connections_dir / draft_path.name
-        elif is_source:
-            target = config.sources_dir / draft_path.name
+        # Determine target directory based on draft folder
+        if config.drafts_sources_dir in draft_path.parents or "source" in meta.get("tags", []):
+            target_dir = config.sources_dir
+        elif config.drafts_connections_dir in draft_path.parents or "connection" in meta.get("tags", []):
+            target_dir = config.connections_dir
         else:
-            target = config.concepts_dir / draft_path.name
+            target_dir = config.concepts_dir
             
-        target.parent.mkdir(parents=True, exist_ok=True)
+        target_dir.parent.mkdir(parents=True, exist_ok=True)
+
+        # Handle Pretty Titles and Duplicate Check
+        title = meta.get("title", draft_path.stem)
+        safe_name = sanitize_filename(title)
+        
+        target_path = target_dir / f"{safe_name}.md"
+        counter = 1
+        while target_path.exists():
+            target_path = target_dir / f"{safe_name} ({counter}).md"
+            counter += 1
 
         meta["status"] = "published"
         meta["updated"] = datetime.now().strftime("%Y-%m-%d")
         
-        write_note(target, meta, body)
+        write_note(target_path, meta, body)
         draft_path.unlink()
 
         try:
             draft_rel = str(draft_path.relative_to(config.root_path))
-            target_rel = str(target.relative_to(config.root_path))
+            target_rel = str(target_path.relative_to(config.root_path))
         except ValueError:
             draft_rel = str(draft_path.name)
-            target_rel = str(target.name)
+            target_rel = str(target_path.name)
 
         db.publish_article(draft_rel, target_rel)
         art = db.get_article(target_rel)
         if art:
             db.upsert_article(WikiArticleRecord(
                 path=target_rel,
-                title=art.title,
+                title=title,
                 sources=art.sources,
                 content_hash=content_hash(body),
+                article_type=art.article_type,
                 is_draft=False,
                 created_at=art.created_at
             ))
             db.approve_article(target_rel)
 
-        published.append(target)
-        print(f"Published: {target.name}")
+        published.append(target_path)
+        print(f"Published: {target_path.name}")
 
     return published
 

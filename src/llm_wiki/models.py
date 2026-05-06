@@ -54,6 +54,7 @@ class WikiArticleRecord(BaseModel):
     title: str
     sources: List[str]
     content_hash: str
+    article_type: str = "concept" # source, concept, connection, qa
     is_draft: bool = True
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
