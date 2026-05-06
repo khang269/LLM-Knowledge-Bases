@@ -22,7 +22,7 @@ def setup_teardown():
 
 def run_cli(*args):
     """Helper to run the CLI."""
-    cmd = [str(PYTHON_EXE), "-m", "llm_wiki.cli", "--dir", str(KB_DIR)] + list(args)
+    cmd = [str(PYTHON_EXE), "-m", "llm_wiki.cli", "--dir", str(KB_DIR), "--provider", "google"] + list(args)
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(BASE_DIR))
     print(f"COMMAND: {' '.join(cmd)}")
     print(f"STDOUT: {result.stdout}")

@@ -2,6 +2,10 @@ import argparse
 from pathlib import Path
 import dotenv
 import os
+import warnings
+
+# Suppress pydub warning about missing ffmpeg
+warnings.filterwarnings("ignore", module="pydub", category=RuntimeWarning)
 
 from .config import default_config, GLOBAL_ENV_FILE, ensure_global_config
 from .llm import LLMClient
@@ -18,7 +22,7 @@ def main():
     dotenv.load_dotenv()
     
     parser = argparse.ArgumentParser(description="LLM Knowledge Base (Wiki) Manager")
-    parser.add_argument("--provider", type=str, help="LLM Provider (gemini, openai, anthropic, groq)", default=None)
+    parser.add_argument("--provider", type=str, help="LLM Provider (google, openai, anthropic, groq)", default=None)
     parser.add_argument("--model", type=str, help="Model name to use with the selected provider", default=None)
     parser.add_argument("--dir", type=str, help="Root directory for the wiki (default: my-research)", default="my-research")
     
@@ -68,10 +72,22 @@ def main():
     config_set.add_argument("value", type=str, help="The value to set")
     
     config_set_key = config_sub.add_parser("set-key", help="Set an API key globally")
-    config_set_key.add_argument("provider", choices=["GEMINI_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GROQ_API_KEY"], help="The API key to set")
+    config_set_key.add_argument("provider", choices=["GOOGLE_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GROQ_API_KEY"], help="The API key to set")
     config_set_key.add_argument("value", type=str, help="The API key value")
     
     args = parser.parse_args()
+    
+    if args.command == "config":
+        if args.config_command == "set":
+            if args.key == "provider":
+                set_global_env("LLM_PROVIDER", args.value)
+            elif args.key == "model":
+                set_global_env("LLM_MODEL", args.value)
+        elif args.config_command == "set-key":
+            set_global_env(args.provider, args.value)
+        else:
+            config_parser.print_help()
+        return
     
     from .config import WikiConfig
     config = WikiConfig(root_path=Path(args.dir).resolve())
@@ -166,17 +182,6 @@ def main():
 
     elif args.command == "session-context":
         print(wiki.get_session_context())
-        
-    elif args.command == "config":
-        if args.config_command == "set":
-            if args.key == "provider":
-                set_global_env("LLM_PROVIDER", args.value)
-            elif args.key == "model":
-                set_global_env("LLM_MODEL", args.value)
-        elif args.config_command == "set-key":
-            set_global_env(args.provider, args.value)
-        else:
-            config_parser.print_help()
             
     else:
         parser.print_help()

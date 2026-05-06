@@ -9,7 +9,7 @@ class LLMProvider:
     def generate_structured(self, prompt: str, response_schema: type[BaseModel], system_instruction: Optional[str] = None) -> BaseModel:
         raise NotImplementedError
 
-class GeminiProvider(LLMProvider):
+class GoogleProvider(LLMProvider):
     def __init__(self, client: Any, model: str):
         from google.genai import types
         self.client = client
@@ -146,15 +146,19 @@ class GroqProvider(LLMProvider):
 class LLMClient:
     def __init__(self, provider: Optional[str] = None, model: Optional[str] = None):
         """Initialize the LLM client by detecting the provider."""
-        provider = provider or os.environ.get("LLM_PROVIDER", "gemini").lower()
-        model = model or os.environ.get("LLM_MODEL")
+        provider = provider or os.environ.get("LLM_PROVIDER")
+        if not provider:
+            raise ValueError("No LLM provider configured. Please set one using: llm-wiki config set provider <google|openai|anthropic|groq>")
+        provider = provider.lower()
         
-        print(f"Initializing LLMClient with provider: {provider}")
+        model = model or os.environ.get("LLM_MODEL")
 
         if provider == "openai":
             import instructor
             from openai import OpenAI
             api_key = os.environ.get("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("Missing API key for provider 'openai'. Please set it using: llm-wiki config set-key OPENAI_API_KEY <your_key>")
             client = instructor.from_openai(OpenAI(api_key=api_key))
             self.provider_impl = OpenAIProvider(client, model or "gpt-4o-mini")
             
@@ -162,6 +166,8 @@ class LLMClient:
             import instructor
             from anthropic import Anthropic
             api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise ValueError("Missing API key for provider 'anthropic'. Please set it using: llm-wiki config set-key ANTHROPIC_API_KEY <your_key>")
             client = instructor.from_anthropic(Anthropic(api_key=api_key))
             self.provider_impl = AnthropicProvider(client, model or "claude-3-5-sonnet-latest")
             
@@ -169,16 +175,21 @@ class LLMClient:
             import instructor
             from groq import Groq
             api_key = os.environ.get("GROQ_API_KEY")
+            if not api_key:
+                raise ValueError("Missing API key for provider 'groq'. Please set it using: llm-wiki config set-key GROQ_API_KEY <your_key>")
             client = instructor.from_groq(Groq(api_key=api_key))
             self.provider_impl = GroqProvider(client, model or "llama-3.3-70b-versatile")
             
-        else: # default to gemini
+        elif provider == "google":
             from google import genai
-            api_key = os.environ.get("GEMINI_API_KEY")
+            api_key = os.environ.get("GOOGLE_API_KEY")
             if not api_key:
-                print("Warning: GEMINI_API_KEY is not set.")
+                raise ValueError("Missing API key for provider 'google'. Please set it using: llm-wiki config set-key GOOGLE_API_KEY <your_key>")
             client = genai.Client(api_key=api_key)
-            self.provider_impl = GeminiProvider(client, model or "gemini-2.5-flash")
+            self.provider_impl = GoogleProvider(client, model or "gemini-2.5-flash")
+            
+        else:
+            raise ValueError(f"Unknown provider: {provider}")
 
     def generate_text(self, prompt: str, system_instruction: Optional[str] = None) -> str:
         """Generate text from a prompt, optionally with system instructions."""
