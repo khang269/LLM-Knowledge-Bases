@@ -132,6 +132,8 @@ Look for:
 - Inconsistent recommendations (different articles recommend conflicting approaches)
 - Outdated information that conflicts with newer entries
 
+Note: `index.md` is an auto-generated table of contents, and `log.md` is a system operation log. Do not treat them as factual knowledge, but DO evaluate them for structural inconsistencies (e.g., if index.md links to a file that doesn't exist, or if the summaries in the index contradict the actual file contents).
+
 For each issue found, output EXACTLY one line in this format:
 CONTRADICTION: [file1] vs [file2] - description of the conflict
 INCONSISTENCY: [file] - description of the inconsistency

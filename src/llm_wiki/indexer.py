@@ -16,12 +16,13 @@ def generate_index(config: WikiConfig, db: StateDB) -> Path:
     connection_entries = []
     
     for art in published:
+        stem = Path(art.path).stem
         if "/sources/" in art.path or "\\sources\\" in art.path:
-            source_entries.append((art.title, ""))
+            source_entries.append((art.title, "", stem))
         elif "/connections/" in art.path or "\\connections\\" in art.path:
-            connection_entries.append((art.title, "Connection"))
+            connection_entries.append((art.title, "Connection", stem))
         else:
-            concept_entries.append((art.title, ""))
+            concept_entries.append((art.title, "", stem))
             
     # Also pick up source summary pages directly from wiki/sources/
     if config.sources_dir.exists():
@@ -33,7 +34,7 @@ def generate_index(config: WikiConfig, db: StateDB) -> Path:
                     quality = meta.get("quality", "")
                     src_file = meta.get("source_file", "")
                     hint = quality if quality else src_file
-                    source_entries.append((title, hint))
+                    source_entries.append((title, hint, md.stem))
             except Exception:
                 pass
                 
@@ -43,7 +44,7 @@ def generate_index(config: WikiConfig, db: StateDB) -> Path:
             try:
                 meta, _ = parse_note(md)
                 title = meta.get("title", md.stem)
-                qa_entries.append((title, "Q&A Answer"))
+                qa_entries.append((title, "Q&A Answer", md.stem))
             except Exception:
                 pass
 
@@ -56,9 +57,8 @@ def generate_index(config: WikiConfig, db: StateDB) -> Path:
     
     if concept_entries:
         body_lines.append("## Concepts")
-        for title, hint in concept_entries:
-            safe = sanitize_filename(title)
-            link = f"[[{safe}|{title}]]" if safe != title else f"[[{title}]]"
+        for title, hint, stem in concept_entries:
+            link = f"[[{stem}|{title}]]" if stem != title else f"[[{title}]]"
             entry = f"- {link}"
             if hint:
                 entry += f" — {hint}"
@@ -67,9 +67,8 @@ def generate_index(config: WikiConfig, db: StateDB) -> Path:
         
     if connection_entries:
         body_lines.append("## Connections")
-        for title, hint in connection_entries:
-            safe = sanitize_filename(title)
-            link = f"[[{safe}|{title}]]" if safe != title else f"[[{title}]]"
+        for title, hint, stem in connection_entries:
+            link = f"[[{stem}|{title}]]" if stem != title else f"[[{title}]]"
             entry = f"- {link}"
             if hint:
                 entry += f" — {hint}"
@@ -78,9 +77,8 @@ def generate_index(config: WikiConfig, db: StateDB) -> Path:
         
     if source_entries:
         body_lines.append("## Sources")
-        for title, hint in source_entries:
-            safe = sanitize_filename(title)
-            link = f"[[{safe}|{title}]]" if safe != title else f"[[{title}]]"
+        for title, hint, stem in source_entries:
+            link = f"[[{stem}|{title}]]" if stem != title else f"[[{title}]]"
             entry = f"- {link}"
             if hint:
                 entry += f" — {hint}"
@@ -89,9 +87,8 @@ def generate_index(config: WikiConfig, db: StateDB) -> Path:
         
     if qa_entries:
         body_lines.append("## Q&A")
-        for title, hint in qa_entries:
-            safe = sanitize_filename(title)
-            link = f"[[{safe}|{title}]]" if safe != title else f"[[{title}]]"
+        for title, hint, stem in qa_entries:
+            link = f"[[{stem}|{title}]]" if stem != title else f"[[{title}]]"
             entry = f"- {link}"
             if hint:
                 entry += f" — {hint}"

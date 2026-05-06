@@ -84,13 +84,21 @@ class WikiManager:
             
             # Recalculate health score with LLM issues
             total_pages = max(len(list(self.config.wiki_path.rglob("*.md"))), 1)
-            pages_with_issues = len({iss.path for iss in result.issues})
-            result.health_score = round(100.0 * (1 - pages_with_issues / total_pages), 1)
             
+            # Base score on real file errors
+            actual_issues = [iss for iss in result.issues if iss.path not in ("(cross-article)", "(system)")]
+            pages_with_issues = len({iss.path for iss in actual_issues})
+            base_score = 100.0 * (1 - pages_with_issues / total_pages)
+            
+            # Penalty for LLM issues
+            llm_penalty = len(llm_issues) * 5.0
+            result.health_score = max(0.0, round(base_score - llm_penalty, 1))
+            
+            total_affected_files = len({iss.path for iss in result.issues})
             if not result.issues:
                 result.summary = f"Wiki healthy. {total_pages} pages checked, no issues."
             else:
-                result.summary = f"{len(result.issues)} issue(s) across {pages_with_issues} files."
+                result.summary = f"{len(result.issues)} issue(s) across {total_affected_files} files."
                 
         append_log(self.config, f"Lint run: {result.health_score}% healthy")
         return result
@@ -147,7 +155,8 @@ class WikiManager:
                 "question": question,
                 "consulted": consulted,
                 "filed": datetime.now().strftime("%Y-%m-%d"),
-                "status": "published"
+                "status": "published",
+                "tags": ["qa"]
             }
             body = f"# Q: {question}\n\n## Answer\n\n{answer}"
             write_note(qa_path, meta, body)
