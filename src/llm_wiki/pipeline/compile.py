@@ -56,6 +56,124 @@ def _inject_body_sections(body: str, source_paths: List[str], config: WikiConfig
         sections += "\n\n## See Also\n" + "\n".join(see_also_lines)
     return body + sections
 
+def _compile_single_concept(name: str, config: WikiConfig, client: LLMClient, db: StateDB, force: bool):
+    source_paths = db.get_sources_for_concept(name)
+    is_stub = db.has_stub(name)
+
+    if not source_paths and not is_stub:
+        return None
+
+    safe_name = sanitize_filename(name)
+    wiki_path = config.concepts_dir / f"{safe_name}.md"
+
+    if wiki_path.exists():
+        try:
+            _, existing_body = parse_note(wiki_path)
+            if not force:
+                try:
+                    art_rec = db.get_article(str(wiki_path.relative_to(config.root_path)))
+                except ValueError:
+                    art_rec = db.get_article(str(wiki_path.name))
+                if art_rec and art_rec.content_hash != content_hash(existing_body):
+                    print(f"Skipping '{name}' — manually edited (use force to override)")
+                    return None
+        except Exception:
+            pass
+
+    if is_stub and not source_paths:
+        prompt = f'Write a brief stub wiki article for the concept: "{name}"\nKeep it under 150 words.'
+        try:
+            result = client.generate_structured(prompt, SingleArticle, _STUB_WRITE_SYSTEM)
+            db.delete_stub(name)
+        except Exception as e:
+            print(f"Failed to write stub '{name}': {e}")
+            return None
+    else:
+        sources_text, resolved_paths = _gather_sources(source_paths, config)
+        if not resolved_paths:
+            print(f"No readable sources for '{name}', skipping")
+            return None
+
+        rejections = db.get_rejections(name, limit=3)
+        rej_text = "\n\nPREVIOUS REJECTIONS:\n" + "\n".join(r["feedback"] for r in rejections) if rejections else ""
+
+        prompt = (
+            f'Write the wiki article: "{name}"\n'
+            f"IMPORTANT: Keep the content under 800 words.\n"
+            f"Do NOT use inline hashtags (#tag) in the content body — use [[wikilinks]] only.\n"
+            f"If the sources reveal non-obvious relationships between 2+ existing concepts, include ConnectionArticles in your output.\n"
+            f"SOURCE MATERIAL:\n{sources_text}{rej_text}"
+        )
+        try:
+            result = client.generate_structured(prompt, CompileResult, _WRITE_SYSTEM)
+            for sp in resolved_paths:
+                db.mark_raw_status(sp, "compiled")
+        except Exception as e:
+            print(f"Failed to write '{name}': {e}")
+            return None
+
+    draft_path = config.drafts_dir / f"{safe_name}.md"
+    
+    if is_stub and not source_paths:
+        main_article = result
+    else:
+        main_article = result.article
+        
+    body = _inject_body_sections(main_article.content, source_paths, config)
+    
+    meta = {
+        "title": main_article.title,
+        "tags": sanitize_tags(main_article.tags),
+        "status": "draft",
+    }
+    write_note(draft_path, meta, body)
+    
+    try:
+        draft_rel = str(draft_path.relative_to(config.root_path))
+    except ValueError:
+        draft_rel = str(draft_path.name)
+        
+    db.upsert_article(WikiArticleRecord(
+        path=draft_rel,
+        title=main_article.title,
+        sources=source_paths,
+        content_hash=content_hash(body),
+        is_draft=True
+    ))
+    drafts_produced = [draft_path]
+    print(f"Draft written: {draft_path.name}")
+    
+    if not is_stub and source_paths and hasattr(result, 'connections'):
+        for conn in result.connections:
+            conn_safe = sanitize_filename(conn.title)
+            conn_draft_path = config.drafts_dir / f"{conn_safe}.md"
+            conn_meta = {
+                "title": conn.title,
+                "connects": conn.connects,
+                "sources": source_paths,
+                "status": "draft",
+                "tags": ["connection"]
+            }
+            # No extra body injection for connections, they are self-contained
+            write_note(conn_draft_path, conn_meta, conn.summary)
+            
+            try:
+                conn_draft_rel = str(conn_draft_path.relative_to(config.root_path))
+            except ValueError:
+                conn_draft_rel = str(conn_draft_path.name)
+                
+            db.upsert_article(WikiArticleRecord(
+                path=conn_draft_rel,
+                title=conn.title,
+                sources=source_paths,
+                content_hash=content_hash(conn.summary),
+                is_draft=True
+            ))
+            drafts_produced.append(conn_draft_path)
+            print(f"Connection Draft written: {conn_draft_path.name}")
+
+    return drafts_produced
+
 def compile_concepts(config: WikiConfig, client: LLMClient, db: StateDB, force: bool = False) -> List[Path]:
     concept_names = db.concepts_needing_compile()
     if not concept_names:
@@ -65,121 +183,14 @@ def compile_concepts(config: WikiConfig, client: LLMClient, db: StateDB, force: 
     print(f"Compiling {len(concept_names)} concept(s)")
     draft_paths = []
 
-    for name in concept_names:
-        source_paths = db.get_sources_for_concept(name)
-        is_stub = db.has_stub(name)
+    import concurrent.futures
 
-        if not source_paths and not is_stub:
-            continue
-
-        safe_name = sanitize_filename(name)
-        wiki_path = config.wiki_path / f"{safe_name}.md"
-
-        if wiki_path.exists():
-            try:
-                _, existing_body = parse_note(wiki_path)
-                if not force:
-                    try:
-                        art_rec = db.get_article(str(wiki_path.relative_to(config.root_path)))
-                    except ValueError:
-                        art_rec = db.get_article(str(wiki_path.name))
-                    if art_rec and art_rec.content_hash != content_hash(existing_body):
-                        print(f"Skipping '{name}' — manually edited (use force to override)")
-                        continue
-            except Exception:
-                pass
-
-        if is_stub and not source_paths:
-            prompt = f'Write a brief stub wiki article for the concept: "{name}"\nKeep it under 150 words.'
-            try:
-                result = client.generate_structured(prompt, SingleArticle, _STUB_WRITE_SYSTEM)
-                db.delete_stub(name)
-            except Exception as e:
-                print(f"Failed to write stub '{name}': {e}")
-                continue
-        else:
-            sources_text, resolved_paths = _gather_sources(source_paths, config)
-            if not resolved_paths:
-                print(f"No readable sources for '{name}', skipping")
-                continue
-
-            rejections = db.get_rejections(name, limit=3)
-            rej_text = "\n\nPREVIOUS REJECTIONS:\n" + "\n".join(r["feedback"] for r in rejections) if rejections else ""
-
-            prompt = (
-                f'Write the wiki article: "{name}"\n'
-                f"IMPORTANT: Keep the content under 800 words.\n"
-                f"Do NOT use inline hashtags (#tag) in the content body — use [[wikilinks]] only.\n"
-                f"If the sources reveal non-obvious relationships between 2+ existing concepts, include ConnectionArticles in your output.\n"
-                f"SOURCE MATERIAL:\n{sources_text}{rej_text}"
-            )
-            try:
-                result = client.generate_structured(prompt, CompileResult, _WRITE_SYSTEM)
-                for sp in resolved_paths:
-                    db.mark_raw_status(sp, "compiled")
-            except Exception as e:
-                print(f"Failed to write '{name}': {e}")
-                continue
-
-        draft_path = config.drafts_dir / f"{safe_name}.md"
-        
-        if is_stub and not source_paths:
-            main_article = result
-        else:
-            main_article = result.article
-            
-        body = _inject_body_sections(main_article.content, source_paths, config)
-        
-        meta = {
-            "title": main_article.title,
-            "tags": sanitize_tags(main_article.tags),
-            "status": "draft",
-        }
-        write_note(draft_path, meta, body)
-        
-        try:
-            draft_rel = str(draft_path.relative_to(config.root_path))
-        except ValueError:
-            draft_rel = str(draft_path.name)
-            
-        db.upsert_article(WikiArticleRecord(
-            path=draft_rel,
-            title=main_article.title,
-            sources=source_paths,
-            content_hash=content_hash(body),
-            is_draft=True
-        ))
-        draft_paths.append(draft_path)
-        print(f"Draft written: {draft_path.name}")
-        
-        if not is_stub and source_paths and hasattr(result, 'connections'):
-            for conn in result.connections:
-                conn_safe = sanitize_filename(conn.title)
-                conn_draft_path = config.drafts_dir / f"{conn_safe}.md"
-                conn_meta = {
-                    "title": conn.title,
-                    "connects": conn.connects,
-                    "sources": source_paths,
-                    "status": "draft",
-                    "tags": ["connection"]
-                }
-                # No extra body injection for connections, they are self-contained
-                write_note(conn_draft_path, conn_meta, conn.content)
-                
-                try:
-                    conn_draft_rel = str(conn_draft_path.relative_to(config.root_path))
-                except ValueError:
-                    conn_draft_rel = str(conn_draft_path.name)
-                    
-                db.upsert_article(WikiArticleRecord(
-                    path=conn_draft_rel,
-                    title=conn.title,
-                    sources=source_paths,
-                    content_hash=content_hash(conn.content),
-                    is_draft=True
-                ))
-                draft_paths.append(conn_draft_path)
-                print(f"Connection Draft written: {conn_draft_path.name}")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(_compile_single_concept, name, config, client, db, force): name for name in concept_names}
+        for future in concurrent.futures.as_completed(futures):
+            res = future.result()
+            if res:
+                draft_paths.extend(res)
 
     return draft_paths
 
@@ -202,7 +213,7 @@ def approve_drafts(config: WikiConfig, db: StateDB, paths: Optional[List[Path]] 
         elif is_source:
             target = config.sources_dir / draft_path.name
         else:
-            target = config.wiki_path / draft_path.name
+            target = config.concepts_dir / draft_path.name
             
         target.parent.mkdir(parents=True, exist_ok=True)
 

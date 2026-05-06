@@ -27,6 +27,6 @@ dependencies = [
 [project.scripts]
 llm-wiki = "llm_wiki.cli:main"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-packages = ["llm_wiki", "llm_wiki.pipeline"]
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["venv", "venv.*"]

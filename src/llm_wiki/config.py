@@ -50,6 +50,10 @@ class WikiConfig(BaseModel):
         return self.wiki_path / "qa"
         
     @property
+    def concepts_dir(self) -> Path:
+        return self.wiki_path / "concepts"
+        
+    @property
     def connections_dir(self) -> Path:
         return self.wiki_path / "connections"
         

@@ -11,6 +11,6 @@ if ! command -v pipx &> /dev/null; then
     python3 -m pipx ensurepath
 fi
 echo "Installing llm-wiki..."
-python3 -m pipx install git+https://github.com/khang269/LLM-Knowledge-Bases.git --force
+python3 -m pipx install git+https://github.com/khang269/LLM-Knowledge-Bases.git --force --pip-args="--default-timeout=1000"
 python3 -m pipx ensurepath
 echo "Installation complete! Restart your terminal or source your profile to use the 'llm-wiki' command."

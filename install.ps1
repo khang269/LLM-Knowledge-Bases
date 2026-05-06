@@ -13,7 +13,7 @@ if (-not (Get-Command "pipx" -ErrorAction SilentlyContinue)) {
 }
 
 Write-Host "Installing llm-wiki..."
-python -m pipx install git+https://github.com/khang269/LLM-Knowledge-Bases.git --force
+python -m pipx install git+https://github.com/khang269/LLM-Knowledge-Bases.git --force --pip-args="--default-timeout=1000"
 python -m pipx ensurepath
 
 Write-Host "Installation complete! Restart your terminal to use the 'llm-wiki' command."

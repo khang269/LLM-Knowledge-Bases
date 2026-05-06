@@ -1,5 +1,6 @@
 import sqlite3
 import json
+import threading
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -9,12 +10,13 @@ class StateDB:
     def __init__(self, db_path: Path):
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(str(self.db_path))
+        self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False, timeout=15)
         self.conn.row_factory = sqlite3.Row
+        self._lock = threading.Lock()
         self._init_db()
 
     def _init_db(self):
-        with self.conn:
+        with self._lock, self.conn:
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS raw_notes (
                     path TEXT PRIMARY KEY,
@@ -62,7 +64,7 @@ class StateDB:
 
     # --- Raw Notes ---
     def upsert_raw(self, record: RawNoteRecord):
-        with self.conn:
+        with self._lock, self.conn:
             self.conn.execute("""
                 INSERT OR REPLACE INTO raw_notes (path, content_hash, status, summary, quality, language, error, ingested_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -90,12 +92,12 @@ class StateDB:
         return [RawNoteRecord(**dict(row)) for row in cur.fetchall()]
 
     def mark_raw_status(self, path: str, status: str):
-        with self.conn:
+        with self._lock, self.conn:
             self.conn.execute("UPDATE raw_notes SET status = ? WHERE path = ?", (status, path))
 
     # --- Concepts ---
     def upsert_concepts(self, source_path: str, concepts: List[str]):
-        with self.conn:
+        with self._lock, self.conn:
             self.conn.execute("DELETE FROM concepts WHERE source_path = ?", (source_path,))
             for concept in concepts:
                 self.conn.execute("INSERT INTO concepts (source_path, concept_name) VALUES (?, ?)", (source_path, concept))
@@ -125,18 +127,18 @@ class StateDB:
         return bool(cur.fetchone())
 
     def add_stub(self, concept_name: str):
-        with self.conn:
+        with self._lock, self.conn:
             self.conn.execute("INSERT OR IGNORE INTO stubs (concept_name) VALUES (?)", (concept_name,))
 
     def delete_stub(self, concept_name: str):
-        with self.conn:
+        with self._lock, self.conn:
             self.conn.execute("DELETE FROM stubs WHERE concept_name = ?", (concept_name,))
 
     # --- Articles ---
     def upsert_article(self, record: WikiArticleRecord):
         now = datetime.now()
         sources_json = json.dumps(record.sources)
-        with self.conn:
+        with self._lock, self.conn:
             cur = self.conn.execute("SELECT created_at FROM articles WHERE path = ?", (record.path,))
             existing = cur.fetchone()
             created_at = existing["created_at"] if existing else now
@@ -167,20 +169,20 @@ class StateDB:
         return res
 
     def publish_article(self, draft_path: str, target_path: str):
-        with self.conn:
+        with self._lock, self.conn:
             self.conn.execute("UPDATE articles SET path = ?, is_draft = 0, updated_at = ? WHERE path = ?", (target_path, datetime.now(), draft_path))
 
     def delete_article(self, path: str):
-        with self.conn:
+        with self._lock, self.conn:
             self.conn.execute("DELETE FROM articles WHERE path = ?", (path,))
 
     def approve_article(self, path: str, notes: str = ""):
-        with self.conn:
+        with self._lock, self.conn:
             self.conn.execute("UPDATE articles SET is_draft = 0, updated_at = ? WHERE path = ?", (datetime.now(), path))
 
     # --- Rejections ---
     def add_rejection(self, concept_name: str, feedback: str, body: str = ""):
-        with self.conn:
+        with self._lock, self.conn:
             self.conn.execute("INSERT INTO rejections (concept_name, feedback, body, rejected_at) VALUES (?, ?, ?, ?)", (concept_name, feedback, body, datetime.now()))
 
     def get_rejections(self, concept_name: str, limit: int = 3) -> List[Dict[str, Any]]:

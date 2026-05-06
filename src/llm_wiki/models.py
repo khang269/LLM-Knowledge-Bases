@@ -19,7 +19,7 @@ class SingleArticle(BaseModel):
 class ConnectionArticle(BaseModel):
     title: str = Field(description="The title of the connection article (e.g. 'Connection: X and Y')")
     connects: List[str] = Field(description="List of concept names this article connects")
-    content: str = Field(description="The markdown content of the connection article")
+    summary: str = Field(description="A 1-sentence summary of why these concepts are connected")
 
 class CompileResult(BaseModel):
     article: SingleArticle = Field(description="The compiled concept article")
