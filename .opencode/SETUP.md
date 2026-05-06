@@ -29,8 +29,8 @@ Invoke-WebRequest -Uri https://raw.githubusercontent.com/khang269/LLM-Knowledge-
 
 Configure your API keys globally so all your projects can share them:
 ```bash
-llm-wiki config set provider anthropic
-llm-wiki config set-key ANTHROPIC_API_KEY your_api_key_here
+llm-wiki config set provider google
+llm-wiki config set-key GOOGLE_API_KEY your_api_key_here
 ```
 
 ### Option B: Local Isolated Installation

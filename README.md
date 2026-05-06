@@ -9,7 +9,7 @@ Instead of relying on fragile RAG (Retrieval-Augmented Generation) with vector d
 ## Features
 
 - **Platform Integrations:** Natively hooks into AI coding agents like OpenCode to silently capture conversations and provide autonomous file management tools.
-- **Multi-Provider Support:** Works with Gemini, OpenAI, Anthropic, and Groq via the `instructor` library.
+- **Multi-Provider Support:** Works with Google (Gemini), OpenAI, Anthropic, and Groq via the `instructor` library.
 - **Safe & Structured (No LLM File Editing):** Uses strict Pydantic schemas and a local SQLite database to track the exact state, hashes, and links of every file. The LLM never has raw write access to your filesystem, preventing hallucinated paths or broken markdown.
 - **Dual Ingestion:** Ingests raw external notes (`wiki/raw/`) and continuously flushes daily AI conversation transcripts (`wiki/daily/`).
 - **Multi-Format Imports:** Uses `microsoft/markitdown` to natively convert PDFs, Word docs, Excel, YouTube transcripts, and raw web URLs directly into Markdown.
@@ -65,19 +65,19 @@ curl -sL https://raw.githubusercontent.com/khang269/LLM-Knowledge-Bases/main/ins
 Invoke-WebRequest -Uri https://raw.githubusercontent.com/khang269/LLM-Knowledge-Bases/main/install.ps1 -OutFile install.ps1; .\install.ps1
 ```
 
-*(Note: These scripts will automatically install Python 3 and pipx if they are missing from your system).*
+*(Note: These scripts will automatically install Python 3 and pipx if they are missing from your system, and apply a high timeout to handle the large dependencies).*
 
-### Global Configuration
-Once installed globally, you don't need a `.env` file in every single project! You can securely set your API keys and provider preferences globally using the CLI:
+### Global Configuration (Required)
+Once installed globally, you don't need a `.env` file in every single project! You can securely set your API keys and provider preferences globally using the CLI. **You must set a provider and API key before running any workflows:**
 
 ```bash
-# Set your default provider and model
-llm-wiki config set provider anthropic
-llm-wiki config set model claude-3-5-sonnet-latest
+# Set your default provider and model (google, openai, anthropic, or groq)
+llm-wiki config set provider google
+llm-wiki config set model gemini-2.5-flash
 
 # Set your API keys (These are stored securely in ~/.llm-wiki/.env)
+llm-wiki config set-key GOOGLE_API_KEY your_api_key_here
 llm-wiki config set-key ANTHROPIC_API_KEY your_api_key_here
-llm-wiki config set-key GEMINI_API_KEY your_api_key_here
 ```
 
 ---
