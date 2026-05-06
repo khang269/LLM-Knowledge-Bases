@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class AnalysisResult(BaseModel):
     summary: str = Field(description="A concise summary of the note.")
-    key_concepts: List[str] = Field(description="Extracted key concepts (3-8 max).")
+    key_concepts: List[str] = Field(description="Extracted key concepts (3-8 max). Must be highly specific, valid, non-empty strings. Do not return null.")
     suggested_topics: List[str] = Field(description="Broader suggested topics.", default_factory=list)
     quality: str = Field(description="Quality of the source: high, medium, low", default="medium")
     language: Optional[str] = Field(description="Detected ISO 639-1 language code (e.g. 'en').", default=None)

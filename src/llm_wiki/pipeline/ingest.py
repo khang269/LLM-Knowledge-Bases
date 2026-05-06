@@ -14,6 +14,7 @@ log = logging.getLogger(__name__)
 _SYSTEM = (
     "You are a knowledge analyst. Read the provided note and extract structured information. "
     "Be concise and accurate. Do not invent information not present in the note. "
+    "Ensure all extracted key concepts are highly specific, valid, and non-empty strings. Do not return null or empty concepts. "
     "Detect the primary language of the note and return its ISO 639-1 code in the 'language' field "
     "(e.g. 'en', 'fr', 'de'). Use null if uncertain."
 )
@@ -32,6 +33,8 @@ def _normalize_concept_names(raw_names: List[str], db: StateDB) -> List[str]:
     seen = set()
     normalized = []
     for name in raw_names:
+        if not name or name == "null" or name.lower() == "none":
+            continue
         name = name.strip()
         if not name: continue
         canonical = existing.get(name.lower(), name)

@@ -71,25 +71,28 @@ class StateDB:
             """, (record.path, record.content_hash, record.status, record.summary, record.quality, record.language, record.error, record.ingested_at))
 
     def get_raw_by_hash(self, h: str) -> Optional[RawNoteRecord]:
-        cur = self.conn.execute("SELECT * FROM raw_notes WHERE content_hash = ?", (h,))
-        row = cur.fetchone()
-        if row:
-            return RawNoteRecord(**dict(row))
-        return None
+        with self._lock:
+            cur = self.conn.execute("SELECT * FROM raw_notes WHERE content_hash = ?", (h,))
+            row = cur.fetchone()
+            if row:
+                return RawNoteRecord(**dict(row))
+            return None
 
     def get_raw(self, path: str) -> Optional[RawNoteRecord]:
-        cur = self.conn.execute("SELECT * FROM raw_notes WHERE path = ?", (path,))
-        row = cur.fetchone()
-        if row:
-            return RawNoteRecord(**dict(row))
-        return None
+        with self._lock:
+            cur = self.conn.execute("SELECT * FROM raw_notes WHERE path = ?", (path,))
+            row = cur.fetchone()
+            if row:
+                return RawNoteRecord(**dict(row))
+            return None
 
     def list_raw(self, status: Optional[str] = None) -> List[RawNoteRecord]:
-        if status:
-            cur = self.conn.execute("SELECT * FROM raw_notes WHERE status = ?", (status,))
-        else:
-            cur = self.conn.execute("SELECT * FROM raw_notes")
-        return [RawNoteRecord(**dict(row)) for row in cur.fetchall()]
+        with self._lock:
+            if status:
+                cur = self.conn.execute("SELECT * FROM raw_notes WHERE status = ?", (status,))
+            else:
+                cur = self.conn.execute("SELECT * FROM raw_notes")
+            return [RawNoteRecord(**dict(row)) for row in cur.fetchall()]
 
     def mark_raw_status(self, path: str, status: str):
         with self._lock, self.conn:
@@ -103,28 +106,32 @@ class StateDB:
                 self.conn.execute("INSERT INTO concepts (source_path, concept_name) VALUES (?, ?)", (source_path, concept))
 
     def list_all_concept_names(self) -> List[str]:
-        cur = self.conn.execute("SELECT DISTINCT concept_name FROM concepts")
-        return [row["concept_name"] for row in cur.fetchall()]
+        with self._lock:
+            cur = self.conn.execute("SELECT DISTINCT concept_name FROM concepts WHERE concept_name IS NOT NULL AND concept_name != ''")
+            return [row["concept_name"] for row in cur.fetchall() if row["concept_name"]]
 
     def concepts_needing_compile(self) -> List[str]:
         """Concepts that have linked sources with status 'ingested', plus stubs."""
-        cur = self.conn.execute("""
-            SELECT DISTINCT c.concept_name 
-            FROM concepts c
-            JOIN raw_notes r ON c.source_path = r.path
-            WHERE r.status = 'ingested'
-            UNION
-            SELECT concept_name FROM stubs
-        """)
-        return [row["concept_name"] for row in cur.fetchall()]
+        with self._lock:
+            cur = self.conn.execute("""
+                SELECT DISTINCT c.concept_name 
+                FROM concepts c
+                JOIN raw_notes r ON c.source_path = r.path
+                WHERE r.status = 'ingested' AND c.concept_name IS NOT NULL
+                UNION
+                SELECT concept_name FROM stubs WHERE concept_name IS NOT NULL
+            """)
+            return [row["concept_name"] for row in cur.fetchall() if row["concept_name"]]
 
     def get_sources_for_concept(self, concept_name: str) -> List[str]:
-        cur = self.conn.execute("SELECT source_path FROM concepts WHERE concept_name = ?", (concept_name,))
-        return [row["source_path"] for row in cur.fetchall()]
+        with self._lock:
+            cur = self.conn.execute("SELECT source_path FROM concepts WHERE concept_name = ?", (concept_name,))
+            return [row["source_path"] for row in cur.fetchall()]
 
     def has_stub(self, concept_name: str) -> bool:
-        cur = self.conn.execute("SELECT 1 FROM stubs WHERE concept_name = ?", (concept_name,))
-        return bool(cur.fetchone())
+        with self._lock:
+            cur = self.conn.execute("SELECT 1 FROM stubs WHERE concept_name = ?", (concept_name,))
+            return bool(cur.fetchone())
 
     def add_stub(self, concept_name: str):
         with self._lock, self.conn:
@@ -148,25 +155,27 @@ class StateDB:
             """, (record.path, record.title, sources_json, record.content_hash, record.is_draft, created_at, now))
 
     def get_article(self, path: str) -> Optional[WikiArticleRecord]:
-        cur = self.conn.execute("SELECT * FROM articles WHERE path = ?", (path,))
-        row = cur.fetchone()
-        if row:
-            d = dict(row)
-            d["sources"] = json.loads(d["sources"])
-            return WikiArticleRecord(**d)
-        return None
+        with self._lock:
+            cur = self.conn.execute("SELECT * FROM articles WHERE path = ?", (path,))
+            row = cur.fetchone()
+            if row:
+                d = dict(row)
+                d["sources"] = json.loads(d["sources"])
+                return WikiArticleRecord(**d)
+            return None
 
     def list_articles(self, drafts_only: bool = False) -> List[WikiArticleRecord]:
-        q = "SELECT * FROM articles"
-        if drafts_only:
-            q += " WHERE is_draft = 1"
-        cur = self.conn.execute(q)
-        res = []
-        for row in cur.fetchall():
-            d = dict(row)
-            d["sources"] = json.loads(d["sources"])
-            res.append(WikiArticleRecord(**d))
-        return res
+        with self._lock:
+            q = "SELECT * FROM articles"
+            if drafts_only:
+                q += " WHERE is_draft = 1"
+            cur = self.conn.execute(q)
+            res = []
+            for row in cur.fetchall():
+                d = dict(row)
+                d["sources"] = json.loads(d["sources"])
+                res.append(WikiArticleRecord(**d))
+            return res
 
     def publish_article(self, draft_path: str, target_path: str):
         with self._lock, self.conn:
@@ -186,5 +195,6 @@ class StateDB:
             self.conn.execute("INSERT INTO rejections (concept_name, feedback, body, rejected_at) VALUES (?, ?, ?, ?)", (concept_name, feedback, body, datetime.now()))
 
     def get_rejections(self, concept_name: str, limit: int = 3) -> List[Dict[str, Any]]:
-        cur = self.conn.execute("SELECT * FROM rejections WHERE concept_name = ? ORDER BY rejected_at DESC LIMIT ?", (concept_name, limit))
-        return [dict(row) for row in cur.fetchall()]
+        with self._lock:
+            cur = self.conn.execute("SELECT * FROM rejections WHERE concept_name = ? ORDER BY rejected_at DESC LIMIT ?", (concept_name, limit))
+            return [dict(row) for row in cur.fetchall()]
