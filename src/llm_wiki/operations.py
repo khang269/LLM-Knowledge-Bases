@@ -105,7 +105,7 @@ class WikiManager:
         return result
 
     def query(self, question: str, file_back: bool = False) -> str:
-        """Query the wiki to answer a question based on indexed content."""
+        """Query the wiki to answer a question based on indexed content using Semantic Graph Traversal."""
         index_content = ""
         if self.config.index_file.exists():
             index_content = self.config.index_file.read_text(encoding='utf-8')
@@ -116,45 +116,98 @@ class WikiManager:
         Current Wiki Index:
         {index_content}
         
-        Based on the index, list the exact filenames you need to read to answer this question.
+        Based on the index, list the exact link targets you need to read to answer this question.
+        Use the exact text inside the double brackets [[ ]]. If there is a pipe |, use the part BEFORE the pipe.
         If the question asks about recent events, decisions, or things "we" should do, heavily prioritize reading the Daily Logs.
         Provide them as a comma-separated list. If none, reply "None".
-        Provide the EXACT filenames including the .md extension (e.g. '2026-05-07.md', 'Attention is all you need.md').
         """
         system_instruction = "You are an AI assistant maintaining a personal knowledge base wiki."
         
         pages_to_read_str = self.llm.generate_text(prompt=routing_prompt, system_instruction=system_instruction)
+        print(f"\n[DEBUG] LLM requested entry nodes: {pages_to_read_str}")
         
         context = ""
-        consulted = []
+        consulted = set()
+        queue = []
         if pages_to_read_str.strip().lower() != "none":
-            page_names = [p.strip() for p in pages_to_read_str.split(",")]
-            for name in page_names:
+            import re
+            matches = re.findall(r"\[\[(.*?)\]\]", pages_to_read_str)
+            if matches:
+                nodes = [m.split('|')[0].strip() for m in matches]
+            else:
+                nodes = [p.strip() for p in pages_to_read_str.split(",")]
+            
+            queue = [(n, 0) for n in nodes if n]
+            
+        MAX_DEPTH = 1
+        MAX_CHARS = 40000  # Rough cap to prevent token overflow
+        current_length = 0
+        
+        from .storage import parse_note, extract_wikilinks
+        
+        while queue and current_length < MAX_CHARS:
+            target, depth = queue.pop(0)
+            if target in consulted:
+                continue
+                
+            resolved_path = None
+            target_md = target if target.endswith(".md") else f"{target}.md"
+            
+            possible_dirs = [
+                self.config.concepts_dir, 
+                self.config.sources_dir, 
+                self.config.connections_dir, 
+                self.config.qa_dir,
+                self.config.daily_dir,
+                self.config.raw_path
+            ]
+            
+            for d in possible_dirs:
+                p = d / target_md
+                if p.exists() and p.is_file():
+                    resolved_path = p
+                    break
+                    
+            if resolved_path:
+                consulted.add(target)
                 try:
-                    # Broaden search to include daily/ and raw/ folders
-                    paths = list(self.config.root_path.rglob(name))
-                    if paths:
-                        content = paths[0].read_text(encoding='utf-8')
-                        context += f"--- {name} ---\n{content}\n\n"
-                        consulted.append(name)
+                    meta, body = parse_note(resolved_path)
+                    content_block = f"--- {target} ---\n{body}\n\n"
+                    
+                    if current_length + len(content_block) > MAX_CHARS:
+                        break # Stop if adding this would overflow
                         
-                        # Follow the breadcrumbs: Load raw source if present in frontmatter
-                        from .storage import parse_note
-                        meta, _ = parse_note(paths[0])
-                        source_file = meta.get("source_file")
-                        if source_file:
-                            raw_path = self.config.root_path / source_file
-                            if raw_path.exists():
-                                raw_content = raw_path.read_text(encoding='utf-8')
-                                context += f"--- RAW SOURCE: {source_file} ---\n{raw_content}\n\n"
-                                consulted.append(source_file)
+                    context += content_block
+                    current_length += len(content_block)
+                    
+                    # Follow breadcrumbs: Load raw source if present in frontmatter
+                    source_file = meta.get("source_file")
+                    if source_file:
+                        raw_path = self.config.root_path / source_file
+                        if raw_path.exists() and raw_path.is_file():
+                            raw_meta, raw_body = parse_note(raw_path)
+                            raw_content = f"--- RAW SOURCE: {source_file} ---\n{raw_body}\n\n"
+                            
+                            # For raw sources, we might accept going slightly over limit to ensure we get the truth
+                            if current_length + len(raw_content) <= MAX_CHARS + 10000:
+                                context += raw_content
+                                current_length += len(raw_content)
+                                consulted.add(source_file)
+                                
+                    # Breadth-First: Add links to queue if within max_depth
+                    if depth < MAX_DEPTH:
+                        links = extract_wikilinks(body)
+                        for link in links:
+                            if link not in consulted:
+                                queue.append((link, depth + 1))
+                                
                 except Exception as e:
-                    pass
+                    print(f"[DEBUG] Failed to load {resolved_path}: {e}")
 
         answer_prompt = f"""
         Question: {question}
         
-        Context from Wiki Pages:
+        Context from Semantic Graph Traversal:
         {context}
         
         Synthesize an answer using the provided context. Cite your sources using the filenames.
@@ -168,7 +221,7 @@ class WikiManager:
             meta = {
                 "title": f"Q: {question}",
                 "question": question,
-                "consulted": consulted,
+                "consulted": list(consulted),
                 "filed": datetime.now().strftime("%Y-%m-%d"),
                 "status": "published",
                 "tags": ["qa"]

@@ -50,8 +50,10 @@ def generate_index(config: WikiConfig, db: StateDB) -> Path:
 
     daily_entries = []
     if config.daily_dir.exists():
-        for md in sorted(config.daily_dir.glob("*.md")):
-            daily_entries.append((md.stem, "Daily Log/Memory", md.stem))
+        for md in sorted(config.daily_dir.rglob("*.md")):
+            rel_path = md.relative_to(config.daily_dir)
+            target = str(rel_path.with_suffix("")).replace("\\", "/")
+            daily_entries.append((md.stem, "Daily Log/Memory", target))
             
     concept_entries.sort(key=lambda x: x[0].lower())
     source_entries.sort(key=lambda x: x[0].lower())
