@@ -13,7 +13,9 @@ from ..storage import parse_note, write_note, atomic_write, content_hash, saniti
 _WRITE_SYSTEM = (
     "You are a wiki editor. Write a single wiki article from the provided source material. "
     "Be accurate, cite sources via [[wikilinks]] in body text, use ## section headings, "
-    "write in evergreen style. Put [[wikilinks]] inline in prose — do not save them for later."
+    "write in evergreen style. Put [[wikilinks]] inline in prose — do not save them for later. "
+    "CRITICAL: Only use [[wikilinks]] for concepts that actually exist in the provided source material "
+    "or the 'Existing Wiki Concepts' list. Do not invent links to non-existent pages."
 )
 
 _STUB_WRITE_SYSTEM = (
@@ -139,10 +141,14 @@ def _compile_single_concept(name: str, config: WikiConfig, client: LLMClient, db
         rejections = db.get_rejections(name, limit=3)
         rej_text = "\n\nPREVIOUS REJECTIONS:\n" + "\n".join(r["feedback"] for r in rejections) if rejections else ""
 
+        existing_topics = db.list_all_concept_names()
+        concepts_hint = ", ".join(existing_topics[:50]) if existing_topics else "none yet"
+
         prompt = (
             f'Write the wiki article: "{name}"\n'
             f"IMPORTANT: Keep the content under 800 words.\n"
             f"Do NOT use inline hashtags (#tag) in the content body — use [[wikilinks]] only.\n"
+            f"Existing Wiki Concepts (you can link to these): {concepts_hint}\n\n"
             f"If the sources reveal non-obvious relationships between 2+ existing concepts, include ConnectionArticles in your output.\n"
             f"SOURCE MATERIAL:\n{sources_text}{rej_text}"
         )

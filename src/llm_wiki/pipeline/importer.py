@@ -60,7 +60,7 @@ class MarkItDownVisionShim:
                     return MockResponse(resp)
 
                 # Route the base64 vision request to the specific provider
-                if provider == "GeminiProvider":
+                if provider == "GoogleProvider":
                     from google.genai import types
                     import base64
                     raw_bytes = base64.b64decode(b64_data)

@@ -20,7 +20,7 @@ def generate_index(config: WikiConfig, db: StateDB) -> Path:
         if "/sources/" in art.path or "\\sources\\" in art.path:
             source_entries.append((art.title, "", stem))
         elif "/connections/" in art.path or "\\connections\\" in art.path:
-            connection_entries.append((art.title, "Connection", stem))
+            connection_entries.append((art.title, "", stem))
         else:
             concept_entries.append((art.title, "", stem))
             
