@@ -1,3 +1,4 @@
+import difflib
 from pathlib import Path
 from typing import Set, Dict, List
 
@@ -35,6 +36,7 @@ def run_lint(config: WikiConfig, db: StateDB) -> LintResult:
                 pass
 
     db_articles = {a.path: a for a in db.list_articles() if not a.is_draft}
+    known_keys = list(title_index.keys())
 
     for page in all_pages:
         if page.stem.lower() in _SYSTEM_STEMS and page.parent == config.wiki_path:
@@ -77,11 +79,19 @@ def run_lint(config: WikiConfig, db: StateDB) -> LintResult:
             if link.lower() in title_index or link.lower() in seen_broken:
                 continue
             seen_broken.add(link.lower())
+            
+            # Fuzzy match suggestion
+            matches = difflib.get_close_matches(link.lower(), known_keys, n=1, cutoff=0.6)
+            sugg = f"Create a page for '{link}' or remove link."
+            if matches:
+                correct_node = title_index[matches[0]].stem
+                sugg = f"Did you mean [[{correct_node}]]?"
+
             issues.append(LintIssue(
                 path=rel_path,
                 issue_type="broken_link",
                 description=f"[[{link}]] has no matching wiki page.",
-                suggestion=f"Create a page for '{link}' or remove link."
+                suggestion=sugg
             ))
 
         linked_by = inbound_index.get(title.lower(), set()) | inbound_index.get(page.stem.lower(), set())

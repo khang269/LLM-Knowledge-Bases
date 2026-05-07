@@ -36,12 +36,37 @@ def _gather_sources(source_paths: List[str], config: WikiConfig) -> Tuple[str, L
             print(f"Could not read {sp}: {e}")
     return "\n\n---\n\n".join(parts), resolved
 
+def _normalize_links_in_text(text: str) -> str:
+    """Ensure all [[link]] targets are sanitized to match our naming conventions."""
+    pattern = re.compile(r"\[\[(.*?)\]\]")
+    
+    def replacer(match):
+        content = match.group(1)
+        if '|' in content:
+            target, alias = content.split('|', 1)
+            return f"[[{sanitize_filename(target.strip())}|{alias.strip()}]]"
+        else:
+            target = content.strip()
+            # If target looks like a filename (contains spaces/colons), sanitize it
+            safe = sanitize_filename(target)
+            if safe != target:
+                return f"[[{safe}|{target}]]"
+            return f"[[{target}]]"
+            
+    return pattern.sub(replacer, text)
+
 def _inject_body_sections(body: str, source_paths: List[str], config: WikiConfig, db: StateDB) -> str:
     body = re.sub(r"\n## Sources\b.*", "", body, flags=re.DOTALL).rstrip()
     body = re.sub(r"\n## See Also\b.*", "", body, flags=re.DOTALL).rstrip()
 
+    # Normalize colons and spaces in body links
+    body = _normalize_links_in_text(body)
+
     source_map = {}
     articles = db.list_articles()
+    existing_titles = {a.title.lower() for a in articles}
+    existing_stems = {Path(a.path).stem.lower() for a in articles}
+    
     for art in articles:
         if art.article_type == "source":
             for src in art.sources:
@@ -59,8 +84,14 @@ def _inject_body_sections(body: str, source_paths: List[str], config: WikiConfig
         link = f"[[{safe_src}|{src_title}]]" if safe_src != src_title else f"[[{src_title}]]"
         source_lines.append(f"- {link}")
 
+    # See Also: Only include links that ACTUALLY exist in the wiki
     linked = sorted(set(extract_wikilinks(body)))
-    see_also_lines = [f"- [[{t}]]" for t in linked if t]
+    see_also_lines = []
+    for t in linked:
+        if not t: continue
+        # Only add to See Also if it's a real file we already have
+        if t.lower() in existing_titles or t.lower() in existing_stems:
+            see_also_lines.append(f"- [[{t}]]")
 
     sections = "\n\n## Sources\n" + "\n".join(source_lines) if source_lines else ""
     if see_also_lines:
@@ -157,10 +188,11 @@ def _compile_single_concept(name: str, config: WikiConfig, client: LLMClient, db
     
     if not is_stub and source_paths and hasattr(result, 'connections'):
         for conn in result.connections:
-            conn_safe = sanitize_filename(conn.title)
-            conn_draft_path = config.drafts_connections_dir / f"{conn_safe}.md"
+            # Force Title to match sanitized filename (remove colons, etc)
+            safe_title = sanitize_filename(conn.title)
+            conn_draft_path = config.drafts_connections_dir / f"{safe_title}.md"
             conn_meta = {
-                "title": conn.title,
+                "title": safe_title, # No more colons in titles
                 "connects": conn.connects,
                 "sources": source_paths,
                 "status": "draft",
