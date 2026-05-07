@@ -72,7 +72,7 @@ class WikiConfig(BaseModel):
         
     @property
     def daily_dir(self) -> Path:
-        return self.root_path / "daily"
+        return self.raw_path / "daily"
         
     @property
     def db_path(self) -> Path:

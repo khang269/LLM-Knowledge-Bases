@@ -39,7 +39,7 @@ def main():
     
     import_parser = subparsers.add_parser("import", help="Import a file, URL, or YouTube video using MarkItDown and convert to markdown.")
     import_parser.add_argument("source", type=str, help="The URL or local file path to import")
-    import_parser.add_argument("--dest", type=str, choices=["raw", "daily"], default="raw", help="Destination folder (raw or daily)")
+    import_parser.add_argument("--dest", type=str, choices=["raw", "daily"], default="daily", help="Destination folder (raw or daily)")
     import_parser.add_argument("--subfolder", type=str, default=None, help="Subfolder inside raw/ (e.g., 'papers', 'videos')")
     
     compile_parser = subparsers.add_parser("compile", help="Compile concepts into draft articles")

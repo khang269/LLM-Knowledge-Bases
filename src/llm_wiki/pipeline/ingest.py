@@ -20,10 +20,10 @@ _SYSTEM = (
 )
 
 def _build_analysis_prompt(body: str, existing_concepts: List[str]) -> str:
-    concepts_hint = ", ".join(existing_concepts[:30]) if existing_concepts else "none yet"
+    concepts_hint = ", ".join(existing_concepts[:50]) if existing_concepts else "none yet"
     return (
         f"Analyze this note and extract structured metadata.\n\n"
-        f"Existing wiki concepts (reuse these names where applicable): {concepts_hint}\n\n"
+        f"CRITICAL: Reuse these existing wiki concepts where applicable to maintain consistency: {concepts_hint}\n\n"
         f"NOTE CONTENT:\n{body}"
     )
 
@@ -117,16 +117,16 @@ def ingest_note(path: Path, config: WikiConfig, client: LLMClient, db: StateDB, 
 
     existing = db.get_raw_by_hash(h)
     if existing and existing.path != rel_path:
-        print(f"Duplicate of {existing.path}, skipping {path.name}")
+        print(f"Skipping {path.name}: Content matches existing record at {existing.path}")
         return None
 
     record = db.get_raw(rel_path)
     if record and record.status == "ingested" and not force:
         if record.content_hash == h:
-            print(f"Already ingested: {path.name}")
+            print(f"Skipping {path.name}: Already ingested with identical hash.")
             return None
         else:
-            print(f"File modified, re-ingesting: {path.name}")
+            print(f"Re-ingesting {path.name}: File has been modified.")
 
     existing_topics = db.list_all_concept_names()
     prompt = _build_analysis_prompt(body, existing_topics)
