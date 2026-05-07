@@ -32,6 +32,7 @@ class WikiManager:
         result = memory.extract_conversation(context, self.llm)
         if "FLUSH_OK" not in result and "FLUSH_ERROR" not in result:
             memory.append_to_daily_log(result, self.config)
+            generate_index(self.config, self.db)
             append_log(self.config, "Memory flush saved to daily log")
         return result
 
@@ -116,7 +117,9 @@ class WikiManager:
         {index_content}
         
         Based on the index, list the exact filenames you need to read to answer this question.
+        If the question asks about recent events, decisions, or things "we" should do, heavily prioritize reading the Daily Logs.
         Provide them as a comma-separated list. If none, reply "None".
+        Provide the EXACT filenames including the .md extension (e.g. '2026-05-07.md', 'Attention is all you need.md').
         """
         system_instruction = "You are an AI assistant maintaining a personal knowledge base wiki."
         
@@ -128,11 +131,23 @@ class WikiManager:
             page_names = [p.strip() for p in pages_to_read_str.split(",")]
             for name in page_names:
                 try:
-                    paths = list(self.config.wiki_path.rglob(name))
+                    # Broaden search to include daily/ and raw/ folders
+                    paths = list(self.config.root_path.rglob(name))
                     if paths:
                         content = paths[0].read_text(encoding='utf-8')
                         context += f"--- {name} ---\n{content}\n\n"
                         consulted.append(name)
+                        
+                        # Follow the breadcrumbs: Load raw source if present in frontmatter
+                        from .storage import parse_note
+                        meta, _ = parse_note(paths[0])
+                        source_file = meta.get("source_file")
+                        if source_file:
+                            raw_path = self.config.root_path / source_file
+                            if raw_path.exists():
+                                raw_content = raw_path.read_text(encoding='utf-8')
+                                context += f"--- RAW SOURCE: {source_file} ---\n{raw_content}\n\n"
+                                consulted.append(source_file)
                 except Exception as e:
                     pass
 

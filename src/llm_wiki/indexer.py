@@ -48,12 +48,26 @@ def generate_index(config: WikiConfig, db: StateDB) -> Path:
             except Exception:
                 pass
 
+    daily_entries = []
+    if config.daily_dir.exists():
+        for md in sorted(config.daily_dir.glob("*.md")):
+            daily_entries.append((md.stem, "Daily Log/Memory", md.stem))
+            
     concept_entries.sort(key=lambda x: x[0].lower())
     source_entries.sort(key=lambda x: x[0].lower())
     qa_entries.sort(key=lambda x: x[0].lower())
     connection_entries.sort(key=lambda x: x[0].lower())
+    daily_entries.sort(key=lambda x: x[0].lower(), reverse=True) # newest first
     
     body_lines = ["# Wiki Index", ""]
+    
+    if daily_entries:
+        body_lines.append("## Daily Logs")
+        for title, hint, stem in daily_entries:
+            link = f"[[{stem}|{title}]]" if stem != title else f"[[{title}]]"
+            entry = f"- {link} — {hint}"
+            body_lines.append(entry)
+        body_lines.append("")
     
     if concept_entries:
         body_lines.append("## Concepts")
