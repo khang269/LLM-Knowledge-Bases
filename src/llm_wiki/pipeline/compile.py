@@ -36,14 +36,25 @@ def _gather_sources(source_paths: List[str], config: WikiConfig) -> Tuple[str, L
             print(f"Could not read {sp}: {e}")
     return "\n\n---\n\n".join(parts), resolved
 
-def _inject_body_sections(body: str, source_paths: List[str], config: WikiConfig) -> str:
+def _inject_body_sections(body: str, source_paths: List[str], config: WikiConfig, db: StateDB) -> str:
     body = re.sub(r"\n## Sources\b.*", "", body, flags=re.DOTALL).rstrip()
     body = re.sub(r"\n## See Also\b.*", "", body, flags=re.DOTALL).rstrip()
+
+    source_map = {}
+    articles = db.list_articles()
+    for art in articles:
+        if art.article_type == "source":
+            for src in art.sources:
+                source_map[src] = art.title
 
     source_lines = []
     for sp in source_paths:
         p = config.root_path / sp
-        src_title = p.stem.replace("-", " ").title() if p.exists() else Path(sp).stem.replace("-", " ").title()
+        if sp in source_map:
+            src_title = source_map[sp]
+        else:
+            src_title = p.stem.replace("-", " ").title() if p.exists() else Path(sp).stem.replace("-", " ").title()
+            
         safe_src = sanitize_filename(src_title)
         link = f"[[{safe_src}|{src_title}]]" if safe_src != src_title else f"[[{src_title}]]"
         source_lines.append(f"- {link}")
@@ -119,7 +130,7 @@ def _compile_single_concept(name: str, config: WikiConfig, client: LLMClient, db
     else:
         main_article = result.article
         
-    body = _inject_body_sections(main_article.content, source_paths, config)
+    body = _inject_body_sections(main_article.content, source_paths, config, db)
     
     meta = {
         "title": main_article.title,
