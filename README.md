@@ -84,7 +84,9 @@ llm-wiki config set-key ANTHROPIC_API_KEY your_api_key_here
 
 ## Usage
 
-Once installed, you can manage your knowledge base directly via the `llm-wiki` CLI command. By default, it operates on a folder named `my-research` in your current directory, but you can target any project folder using the `--dir` flag.
+Once installed, you can manage your knowledge base directly via the `llm-wiki` CLI command. By default, if you don't specify a directory, it operates on a **Global Knowledge Base** located at `~/.llm-wiki/knowledge_base`. This is highly recommended as it provides consistent memory across all your different workspaces. 
+
+If you want an isolated, project-specific memory, you can target a local folder by passing the `--dir "my-local-folder"` flag.
 
 ### 1. Initialization
 Bootstrap the folder structure and SQLite database for a new project:
