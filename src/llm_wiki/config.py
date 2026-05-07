@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 GLOBAL_CONFIG_DIR = Path.home() / ".llm-wiki"
 GLOBAL_ENV_FILE = GLOBAL_CONFIG_DIR / ".env"
+GLOBAL_WIKI_DIR = GLOBAL_CONFIG_DIR / "knowledge_base"
 
 def ensure_global_config():
     GLOBAL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)

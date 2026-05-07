@@ -24,7 +24,7 @@ def main():
     parser = argparse.ArgumentParser(description="LLM Knowledge Base (Wiki) Manager")
     parser.add_argument("--provider", type=str, help="LLM Provider (google, openai, anthropic, groq)", default=None)
     parser.add_argument("--model", type=str, help="Model name to use with the selected provider", default=None)
-    parser.add_argument("--dir", type=str, help="Root directory for the wiki (default: my-research)", default="my-research")
+    parser.add_argument("--dir", type=str, help="Root directory for the wiki (default: global knowledge base in ~/.llm-wiki/knowledge_base)", default=None)
     
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
@@ -89,8 +89,14 @@ def main():
             config_parser.print_help()
         return
     
-    from .config import WikiConfig
-    config = WikiConfig(root_path=Path(args.dir).resolve())
+    from .config import WikiConfig, GLOBAL_WIKI_DIR
+    
+    if args.dir:
+        root_path = Path(args.dir).resolve()
+    else:
+        root_path = GLOBAL_WIKI_DIR
+        
+    config = WikiConfig(root_path=root_path)
     
     llm = LLMClient(provider=args.provider, model=args.model)
     wiki = WikiManager(config, llm)
