@@ -67,8 +67,8 @@ def main():
     config_parser = subparsers.add_parser("config", help="Manage global configuration and API keys")
     config_sub = config_parser.add_subparsers(dest="config_command", help="Config commands")
     
-    config_set = config_sub.add_parser("set", help="Set a configuration value (provider, model)")
-    config_set.add_argument("key", choices=["provider", "model"], help="The key to set")
+    config_set = config_sub.add_parser("set", help="Set a configuration value (provider, model, max_chars, max_depth)")
+    config_set.add_argument("key", choices=["provider", "model", "max_chars", "max_depth"], help="The key to set")
     config_set.add_argument("value", type=str, help="The value to set")
     
     config_set_key = config_sub.add_parser("set-key", help="Set an API key globally")
@@ -83,6 +83,10 @@ def main():
                 set_global_env("LLM_PROVIDER", args.value)
             elif args.key == "model":
                 set_global_env("LLM_MODEL", args.value)
+            elif args.key == "max_chars":
+                set_global_env("QUERY_MAX_CHARS", args.value)
+            elif args.key == "max_depth":
+                set_global_env("QUERY_MAX_DEPTH", args.value)
         elif args.config_command == "set-key":
             set_global_env(args.provider, args.value)
         else:
@@ -96,7 +100,11 @@ def main():
     else:
         root_path = GLOBAL_WIKI_DIR
         
-    config = WikiConfig(root_path=root_path)
+    config = WikiConfig(
+        root_path=root_path,
+        query_max_chars=int(os.environ.get("QUERY_MAX_CHARS", 100000)),
+        query_max_depth=int(os.environ.get("QUERY_MAX_DEPTH", 2))
+    )
     
     llm = LLMClient(provider=args.provider, model=args.model)
     wiki = WikiManager(config, llm)

@@ -139,8 +139,8 @@ class WikiManager:
             
             queue = [(n, 0) for n in nodes if n]
             
-        MAX_DEPTH = 1
-        MAX_CHARS = 40000  # Rough cap to prevent token overflow
+        MAX_DEPTH = self.config.query_max_depth
+        MAX_CHARS = self.config.query_max_chars
         current_length = 0
         
         from .storage import parse_note, extract_wikilinks

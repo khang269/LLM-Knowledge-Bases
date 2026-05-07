@@ -13,6 +13,8 @@ def ensure_global_config():
 
 class WikiConfig(BaseModel):
     root_path: Path = Field(default_factory=lambda: Path(os.getcwd()) / "my-research")
+    query_max_chars: int = Field(default=100000)
+    query_max_depth: int = Field(default=2)
     
     @property
     def raw_path(self) -> Path:
