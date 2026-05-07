@@ -27,7 +27,7 @@ curl -sL https://raw.githubusercontent.com/khang269/LLM-Knowledge-Bases/main/ins
 Invoke-WebRequest -Uri https://raw.githubusercontent.com/khang269/LLM-Knowledge-Bases/main/install.ps1 -OutFile install.ps1; .\install.ps1
 ```
 
-Configure your API keys globally so all your projects can share them:
+Configuring your provider and API key globally is **required** before running any commands:
 ```bash
 llm-wiki config set provider google
 llm-wiki config set-key GOOGLE_API_KEY your_api_key_here
@@ -86,7 +86,7 @@ Now that both the Python engine and the OpenCode plugin are installed, you can i
 1. Launch OpenCode in your project.
 2. In the OpenCode terminal, simply ask the AI:
    > *"Initialize the LLM Knowledge Base for this project."*
-3. The AI will invoke the `kb_init` tool. You should see a `my-research` folder appear in your project root containing `daily/`, `wiki/`, and `_meta/` directories.
+   3. The AI will invoke the `kb_init` tool. You should see a `my-research` folder appear in your project root containing `raw/daily/`, `wiki/`, and `_meta/` directories.
 
 *(Note: Add `my-research/` to your project's `.gitignore` if you do not want to track your personal knowledge base in your project's repository).*
 
@@ -98,7 +98,7 @@ Once installed, the plugin operates in two ways:
 
 ### 1. Passive Memory Capture (Automatic)
 You don't need to do anything. As you chat with OpenCode, the plugin listens to background events:
-- **`session.compacted`**: When a conversation is compacted, the transcript is silently flushed to the Python engine, which extracts "Lessons Learned" and "Decisions" and appends them to today's `daily/YYYY-MM-DD.md` log.
+- **`session.compacted`**: When a conversation is compacted, the transcript is silently flushed to the Python engine, which extracts "Lessons Learned" and "Decisions" and appends them to today's `raw/daily/YYYY-MM-DD/` log.
 - **`experimental.session.compacting`**: Before OpenCode drops old context, the plugin fetches your `wiki/index.md` and injects it back into the prompt, ensuring OpenCode never forgets your architectural rules.
 
 ### 2. Autonomous AI Tools (Active)

@@ -4,20 +4,25 @@ A Python-based, tool-agnostic Local LLM Knowledge Base and Memory Compiler.
 
 Adapted from Andrej Karpathy's LLM Knowledge Base architecture and the Claude Memory Compiler, this project allows you to seamlessly ingest external documents (articles, papers) and automatically extract knowledge from your AI coding conversations into a permanently queryable, structured markdown wiki.
 
-Instead of relying on fragile RAG (Retrieval-Augmented Generation) with vector databases, this system uses **Index-Guided Retrieval**. It maintains a central `index.md` catalog of all your concepts, allowing the LLM to intelligently select which articles to read before synthesizing an answer.
+Instead of relying on fragile RAG (Retrieval-Augmented Generation) with vector databases, this system uses **Semantic Graph Traversal**. It maintains a central `index.md` catalog of all your concepts, allowing the LLM to intelligently navigate through interconnected concepts and raw source files to synthesize accurate, ground-truth answers.
+
+## 🚀 Core Strengths
+
+- **Semantic Graph RAG:** Unlike vector search which can be "hit or miss," our system uses the LLM to pick entry points from the index and then programmatically traverses the graph of `[[wikilinks]]` and `source_file` breadcrumbs. This ensures the LLM always has the relevant context and the raw ground-truth data.
+- **Hybrid Memory System:** Uses concise, LLM-generated summaries for fast navigation and indexing, but automatically fetches the full, unedited **Raw Sources** during queries to ensure 100% accuracy and prevent hallucination.
+- **Multi-Threaded Performance:** High-speed ingestion and compilation pipelines use parallel processing to handle dozens of documents and hundreds of concepts in minutes.
+- **Global Cross-Workspace Memory:** Defaults to a unified global knowledge base (`~/.llm-wiki/`), allowing your AI agents to "remember" decisions and patterns across every project you work on.
+- **Safe & Structured:** Uses strict Pydantic schemas and a local SQLite database to track state, hashes, and links. The LLM never has raw write access to your filesystem.
 
 ## Features
 
 - **Platform Integrations:** Natively hooks into AI coding agents like OpenCode to silently capture conversations and provide autonomous file management tools.
 - **Multi-Provider Support:** Works with Google (Gemini), OpenAI, Anthropic, and Groq via the `instructor` library.
-- **Safe & Structured (No LLM File Editing):** Uses strict Pydantic schemas and a local SQLite database to track the exact state, hashes, and links of every file. The LLM never has raw write access to your filesystem, preventing hallucinated paths or broken markdown.
-- **Dual Ingestion:** Ingests raw external notes (`wiki/raw/`) and continuously flushes daily AI conversation transcripts (`wiki/daily/`).
+- **Dual Ingestion:** Ingests raw external notes and continuously flushes daily AI conversation transcripts into a date-nested hierarchy.
 - **Multi-Format Imports:** Uses `microsoft/markitdown` to natively convert PDFs, Word docs, Excel, YouTube transcripts, and raw web URLs directly into Markdown.
-- **LLM Vision OCR:** Automatically routes images and diagrams found inside imported PDFs/PPTs through your chosen LLM provider (Gemini/Anthropic/OpenAI) to generate rich Markdown descriptions.
-- **Autonomic Synthesis:** Automatically compiles raw sources into atomic Concept articles and detects cross-cutting insights to generate Connection articles.
-- **Drafting & Approval System:** New knowledge is generated into a `.drafts/` folder. You review and approve before it officially enters your knowledge base.
-- **Compounding Q&A:** Ask complex questions and the system will synthesize an answer, citing sources via `[[wikilinks]]`, and optionally save the answer permanently to a `qa/` folder to make future queries smarter.
-- **Advanced Linting:** Fast structural health checks (broken links, orphans, missing YAML) combined with optional LLM-driven contradiction hunting.
+- **LLM Vision OCR:** Automatically routes images and diagrams found inside imported documents through your chosen LLM provider to generate rich Markdown descriptions.
+- **Drafting & Approval System:** New knowledge is generated into namespaced `.drafts/` sub-folders. You review and approve before it officially enters your live wiki.
+- **Advanced Linting:** Fast structural health checks (broken links, orphans, missing YAML) combined with LLM-driven contradiction hunting across the entire graph.
 
 ## Folder Architecture
 
@@ -25,35 +30,34 @@ The library automatically manages the following Obsidian-compatible structure:
 
 ```text
 my-research/
-├── raw/                 # External source materials (articles, papers, images, repos)
-├── daily/               # Chronological AI conversation memory logs
+├── raw/                 # Unprocessed source materials
+│   ├── daily/           # Date-nested AI conversation memory logs
+│   ├── articles/        # Web imports
+│   ├── papers/          # PDF/Word imports
+│   └── ...              
 ├── wiki/                # The compiled, LLM-managed knowledge base
 │   ├── concepts/        # Atomic knowledge articles
 │   ├── connections/     # Cross-cutting insights linking 2+ concepts
 │   ├── sources/         # Auto-generated summaries of raw inputs
 │   ├── qa/              # Filed answers to complex queries
 │   ├── index.md         # Master catalog - the core retrieval mechanism
-│   ├── log.md           # Append-only chronological build log
-│   └── .drafts/         # Articles waiting for your human approval
+│   ├── log.md           # Append-only chronological operation log
+│   └── .drafts/         # Namespaced sub-folders waiting for approval
 └── _meta/               
     └── state.db         # SQLite database tracking file hashes and relationships
 ```
 
 ## Platform Integrations
 
-While this repository provides a standalone Python engine, you can fully integrate it into AI coding assistants so that it automatically runs in the background of your projects.
-
 ### 🔌 OpenCode Integration
 We provide a native TypeScript plugin for OpenCode that automates session extraction and exposes the knowledge base to the AI as native tools.
 👉 **[Read the OpenCode SETUP.md Guide](.opencode/SETUP.md)**
-
-*(More platform integrations coming soon!)*
 
 ---
 
 ## Standalone CLI Installation
 
-We provide two cross-platform installation scripts that will seamlessly install the `llm-wiki` executable globally to your system PATH using `pipx`.
+We provide two cross-platform installation scripts that will install the `llm-wiki` executable globally to your system PATH using `pipx`.
 
 **On Mac / Linux:**
 ```bash
@@ -65,116 +69,72 @@ curl -sL https://raw.githubusercontent.com/khang269/LLM-Knowledge-Bases/main/ins
 Invoke-WebRequest -Uri https://raw.githubusercontent.com/khang269/LLM-Knowledge-Bases/main/install.ps1 -OutFile install.ps1; .\install.ps1
 ```
 
-*(Note: These scripts will automatically install Python 3 and pipx if they are missing from your system, and apply a high timeout to handle the large dependencies).*
+*(Note: These scripts will automatically install Python 3 and pipx if they are missing from your system, and apply a high timeout to handle large dependencies).*
 
 ### Global Configuration (Required)
-Once installed globally, you don't need a `.env` file in every single project! You can securely set your API keys and provider preferences globally using the CLI. **You must set a provider and API key before running any workflows:**
+Once installed globally, you can securely set your preferences once and share them across all projects. **You must set a provider and API key before running any workflows:**
 
 ```bash
-# Set your default provider and model (google, openai, anthropic, or groq)
+# Set your provider and model (google, openai, anthropic, groq)
 llm-wiki config set provider google
 llm-wiki config set model gemini-2.5-flash
 
-# Set your API keys (These are stored securely in ~/.llm-wiki/.env)
+# Set your API keys (Stored securely in ~/.llm-wiki/.env)
 llm-wiki config set-key GOOGLE_API_KEY your_api_key_here
-llm-wiki config set-key ANTHROPIC_API_KEY your_api_key_here
+
+# (Optional) Set query limits for the Graph Traversal
+llm-wiki config set max_chars 100000
+llm-wiki config set max_depth 2
 ```
 
 ---
 
 ## Usage
 
-Once installed, you can manage your knowledge base directly via the `llm-wiki` CLI command. By default, if you don't specify a directory, it operates on a **Global Knowledge Base** located at `~/.llm-wiki/knowledge_base`. This is highly recommended as it provides consistent memory across all your different workspaces. 
-
-If you want an isolated, project-specific memory, you can target a local folder by passing the `--dir "my-local-folder"` flag.
+By default, the CLI operates on a **Global Knowledge Base** at `~/.llm-wiki/knowledge_base`. Use the `--dir` flag to target a project-specific folder.
 
 ### 1. Initialization
-Bootstrap the folder structure and SQLite database for a new project:
+Bootstrap the folder structure and SQLite database:
 ```bash
-llm-wiki --dir "my-project-kb" init
+llm-wiki init
 ```
 
-### 2. Import External Documents (PDFs, Web URLs, YouTube)
-Download and convert external formats directly into your knowledge base using the integrated `markitdown` pipeline. It supports Vision OCR for images using your configured LLM provider.
+### 2. Import External Documents
+Download and convert external formats (PDFs, URLs, YouTube) using the `markitdown` pipeline:
 ```bash
-# Convert a local PDF into the raw/papers folder
-llm-wiki --dir "my-project-kb" import /path/to/paper.pdf --dest raw --subfolder papers
+# Defaults to today's daily log (raw/daily/YYYY-MM-DD/)
+llm-wiki import "https://example.com/article"
 
-# Download and convert a YouTube video transcript into the raw/videos folder
-llm-wiki --dir "my-project-kb" import "https://www.youtube.com/watch?v=..." --dest raw --subfolder videos
-
-# Download a web article straight into today's daily log (wiki/daily/YYYY-MM-DD/)
-llm-wiki --dir "my-project-kb" import "https://example.com/article" --dest daily
+# Or target a specific sub-folder in raw/
+llm-wiki import /path/to/paper.pdf --dest raw --subfolder papers
 ```
 
 ### 3. 1-Click Automatic Build (Recommended)
-If you want to bypass the manual review queue and instantly sync everything, use the `build` command. This will recursively ingest all files, extract their concepts, auto-compile the relationships, and publish them directly to your live wiki.
+Sync everything instantly: ingest raw files, extract concepts, compile relationships, and publish to the live wiki.
 ```bash
-llm-wiki --dir "my-project-kb" build
+llm-wiki build
 ```
 
-### 4. The Staged Workflow (For strict control)
-If you prefer to manually review everything before it touches your wiki, you can run the pipeline step-by-step:
+### 4. The Staged Workflow
+For strict control, run the pipeline step-by-step:
+1. **Ingest:** Extracts concepts and creates Source Summaries in `.drafts/sources/`.
+2. **Compile:** Synthesizes Concept and Connection articles into `.drafts/`.
+3. **Approve:** Moves reviewed markdown files to their final wiki destinations.
 
-**A. Ingest:** Extracts concepts to the database and creates Source Summaries in the `.drafts/` folder.
+### 5. Querying (Semantic Graph RAG)
+Ask complex questions. The system will navigate the index, traverse the graph of concepts, fetch raw sources, and synthesize an answer.
 ```bash
-llm-wiki --dir "my-project-kb" ingest
+llm-wiki query "How does our authentication strategy work?" --file-back
 ```
 
-**B. Compile:** Analyzes the database and writes synthesized Concept and Connection articles into the `.drafts/` folder.
+### 6. Memory Flush
+Pass a raw conversation transcript from an AI agent to extract decisions and lessons learned.
 ```bash
-llm-wiki --dir "my-project-kb" compile
-```
-
-**C. Approve & Reject:** Review the generated Markdown files in `wiki/.drafts/`.
-```bash
-# Publish all drafts to the live wiki
-llm-wiki --dir "my-project-kb" approve
-
-# Or reject a draft with feedback for the LLM to learn from next time
-llm-wiki --dir "my-project-kb" reject wiki/.drafts/concept_name.md --feedback "Make it more concise."
-```
-
-### 5. Memory Flush (Conversation Capture)
-Pass a raw conversation transcript from an AI coding agent to extract architectural decisions, action items, and lessons learned. The output is appended chronologically to today's `daily/` log.
-```bash
-llm-wiki --dir "my-project-kb" flush path/to/transcript.txt
-```
-
-### 6. Session Context Injection
-Output the master `index.md` catalog alongside the most recent daily log. You can pipe this directly into your AI agent's system prompt so it instantly "remembers" the context of the project.
-```bash
-llm-wiki --dir "my-project-kb" session-context
-```
-
-### 7. Querying & Compounding Knowledge
-Ask the knowledge base complex questions. It will read the index, select the relevant articles, and synthesize an answer. Use `--file-back` to permanently save the answer to `wiki/qa/` and update the index.
-```bash
-llm-wiki --dir "my-project-kb" query "What is our standard authentication strategy?" --file-back
-```
-
-### 8. Linting & Health Checks
-Run static analysis to find broken links, missing YAML frontmatter, and orphan pages.
-```bash
-# Fast, free structural checks
-llm-wiki --dir "my-project-kb" lint
-
-# Include LLM-driven contradiction hunting (reads the whole wiki to find conflicting claims)
-llm-wiki --dir "my-project-kb" lint --llm
-```
-
-## Overriding Providers and Models
-
-You can dynamically override the `.env` defaults for a specific task via the CLI:
-```bash
-llm-wiki --provider anthropic --model claude-3-5-sonnet-latest compile
-llm-wiki --provider openai --model gpt-4o query "..."
-llm-wiki --provider groq --model llama-3.3-70b-versatile ingest
+llm-wiki flush path/to/transcript.txt
 ```
 
 ## Testing
-To run the automated end-to-end test suite:
+To run the automated multi-threaded test suite:
 ```bash
-pip install pytest pytest-asyncio
 python -m pytest tests/ -v -s
 ```
