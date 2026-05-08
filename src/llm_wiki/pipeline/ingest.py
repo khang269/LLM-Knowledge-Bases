@@ -121,9 +121,9 @@ def ingest_note(path: Path, config: WikiConfig, client: LLMClient, db: StateDB, 
         return None
 
     record = db.get_raw(rel_path)
-    if record and record.status == "ingested" and not force:
+    if record and record.status in ("ingested", "compiled") and not force:
         if record.content_hash == h:
-            print(f"Skipping {path.name}: Already ingested with identical hash.")
+            print(f"Skipping {path.name}: Already processed with identical hash.")
             return None
         else:
             print(f"Re-ingesting {path.name}: File has been modified.")
@@ -166,11 +166,9 @@ def ingest_note(path: Path, config: WikiConfig, client: LLMClient, db: StateDB, 
     return result
 
 def ingest_all(config: WikiConfig, client: LLMClient, db: StateDB, force: bool = False) -> List[Path]:
-    """Ingest all .md files in raw/ and daily/."""
-    raw_files = [p for p in config.raw_path.rglob("*.md") if not p.name.startswith(".")]
-    daily_files = [p for p in config.daily_dir.rglob("*.md") if not p.name.startswith(".")] if config.daily_dir.exists() else []
-    
-    all_files = raw_files + daily_files
+    """Ingest all .md files in raw/."""
+    # Note: daily_dir is a subfolder of raw_path, so rglob finds both.
+    all_files = [p for p in config.raw_path.rglob("*.md") if not p.name.startswith(".")]
     processed = []
     
     import concurrent.futures

@@ -110,6 +110,7 @@ def _compile_single_concept(name: str, config: WikiConfig, client: LLMClient, db
     safe_name = sanitize_filename(name)
     wiki_path = config.concepts_dir / f"{safe_name}.md"
 
+    existing_content = ""
     if wiki_path.exists():
         try:
             _, existing_body = parse_note(wiki_path)
@@ -121,8 +122,20 @@ def _compile_single_concept(name: str, config: WikiConfig, client: LLMClient, db
                 if art_rec and art_rec.content_hash != content_hash(existing_body):
                     print(f"Skipping '{name}' — manually edited (use force to override)")
                     return None
+            existing_content = existing_body
         except Exception:
             pass
+
+    if force or not existing_content:
+        sources_to_read = source_paths
+    else:
+        sources_to_read = []
+        for sp in source_paths:
+            raw_rec = db.get_raw(sp)
+            if raw_rec and raw_rec.status == "ingested":
+                sources_to_read.append(sp)
+        if not sources_to_read and not is_stub:
+            return None
 
     if is_stub and not source_paths:
         prompt = f'Write a brief stub wiki article for the concept: "{name}"\nKeep it under 150 words.'
@@ -133,8 +146,8 @@ def _compile_single_concept(name: str, config: WikiConfig, client: LLMClient, db
             print(f"Failed to write stub '{name}': {e}")
             return None
     else:
-        sources_text, resolved_paths = _gather_sources(source_paths, config)
-        if not resolved_paths:
+        sources_text, resolved_paths = _gather_sources(sources_to_read, config)
+        if not resolved_paths and not existing_content:
             print(f"No readable sources for '{name}', skipping")
             return None
 
@@ -144,14 +157,26 @@ def _compile_single_concept(name: str, config: WikiConfig, client: LLMClient, db
         existing_topics = db.list_all_concept_names()
         concepts_hint = ", ".join(existing_topics[:50]) if existing_topics else "none yet"
 
-        prompt = (
-            f'Write the wiki article: "{name}"\n'
-            f"IMPORTANT: Keep the content under 800 words.\n"
-            f"Do NOT use inline hashtags (#tag) in the content body — use [[wikilinks]] only.\n"
-            f"Existing Wiki Concepts (you can link to these): {concepts_hint}\n\n"
-            f"If the sources reveal non-obvious relationships between 2+ existing concepts, include ConnectionArticles in your output.\n"
-            f"SOURCE MATERIAL:\n{sources_text}{rej_text}"
-        )
+        if existing_content:
+            prompt = (
+                f'Update and expand the wiki article: "{name}"\n'
+                f"IMPORTANT: Keep the content under 800 words.\n"
+                f"Do NOT use inline hashtags (#tag) in the content body — use [[wikilinks]] only.\n"
+                f"Existing Wiki Concepts (you can link to these): {concepts_hint}\n\n"
+                f"If the new sources reveal non-obvious relationships between 2+ existing concepts, include ConnectionArticles in your output.\n\n"
+                f"Here is the CURRENT WIKI ARTICLE. Please update it to seamlessly incorporate the new source material without losing the old context.\n"
+                f"CURRENT WIKI ARTICLE:\n{existing_content}\n\n"
+                f"NEW SOURCE MATERIAL:\n{sources_text}{rej_text}"
+            )
+        else:
+            prompt = (
+                f'Write the wiki article: "{name}"\n'
+                f"IMPORTANT: Keep the content under 800 words.\n"
+                f"Do NOT use inline hashtags (#tag) in the content body — use [[wikilinks]] only.\n"
+                f"Existing Wiki Concepts (you can link to these): {concepts_hint}\n\n"
+                f"If the sources reveal non-obvious relationships between 2+ existing concepts, include ConnectionArticles in your output.\n"
+                f"SOURCE MATERIAL:\n{sources_text}{rej_text}"
+            )
         try:
             result = client.generate_structured(prompt, CompileResult, _WRITE_SYSTEM)
             for sp in resolved_paths:
@@ -280,10 +305,17 @@ def approve_drafts(config: WikiConfig, db: StateDB, paths: Optional[List[Path]] 
         safe_name = sanitize_filename(title)
         
         target_path = target_dir / f"{safe_name}.md"
-        counter = 1
-        while target_path.exists():
-            target_path = target_dir / f"{safe_name} ({counter}).md"
-            counter += 1
+        
+        if target_path.exists():
+            if target_dir == config.sources_dir:
+                existing_meta, _ = parse_note(target_path)
+                if existing_meta.get("source_file") != meta.get("source_file"):
+                    counter = 1
+                    while target_path.exists():
+                        target_path = target_dir / f"{safe_name} ({counter}).md"
+                        counter += 1
+            else:
+                pass # Overwrite concepts and connections
 
         meta["status"] = "published"
         meta["updated"] = datetime.now().strftime("%Y-%m-%d")

@@ -33,7 +33,7 @@ def test_01_init():
     res = run_cli("init")
     assert res.returncode == 0
     assert KB_DIR.exists()
-    assert (KB_DIR / "daily").exists()
+    assert (KB_DIR / "raw" / "daily").exists()
     assert (KB_DIR / "wiki" / "qa").exists()
 
 def test_02_flush_memory():
@@ -47,7 +47,7 @@ def test_02_flush_memory():
 
     # Check if daily log was created
     today = datetime.now().strftime('%Y-%m-%d')
-    daily_log = KB_DIR / "daily" / f"{today}.md"
+    daily_log = KB_DIR / "raw" / "daily" / f"{today}.md"
     assert daily_log.exists()
     
     content = daily_log.read_text(encoding="utf-8")
