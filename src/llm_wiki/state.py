@@ -185,6 +185,8 @@ class StateDB:
 
     def publish_article(self, draft_path: str, target_path: str):
         with self._lock, self.conn:
+            if draft_path != target_path:
+                self.conn.execute("DELETE FROM articles WHERE path = ?", (target_path,))
             self.conn.execute("UPDATE articles SET path = ?, is_draft = 0, updated_at = ? WHERE path = ?", (target_path, datetime.now(), draft_path))
 
     def delete_article(self, path: str):
