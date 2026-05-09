@@ -21,7 +21,8 @@ dependencies = [
     "python-frontmatter",
     "cffi",
     "cryptography",
-    "markitdown[all]"
+    "markitdown[all]",
+    "tenacity"
 ]
 
 [project.scripts]

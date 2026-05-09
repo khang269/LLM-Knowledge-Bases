@@ -172,7 +172,7 @@ def ingest_all(config: WikiConfig, client: LLMClient, db: StateDB, force: bool =
     processed = []
     
     import concurrent.futures
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=config.max_concurrent_tasks) as executor:
         futures = {executor.submit(ingest_note, path, config, client, db, force): path for path in sorted(all_files)}
         for future in concurrent.futures.as_completed(futures):
             path = futures[future]

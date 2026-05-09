@@ -15,6 +15,7 @@ class WikiConfig(BaseModel):
     root_path: Path = Field(default_factory=lambda: Path(os.getcwd()) / "my-research")
     query_max_chars: int = Field(default=100000)
     query_max_depth: int = Field(default=2)
+    max_concurrent_tasks: int = Field(default=3)
     
     @property
     def raw_path(self) -> Path:

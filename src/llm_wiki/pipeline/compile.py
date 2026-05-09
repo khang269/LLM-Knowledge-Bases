@@ -261,7 +261,7 @@ def compile_concepts(config: WikiConfig, client: LLMClient, db: StateDB, force: 
 
     import concurrent.futures
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=config.max_concurrent_tasks) as executor:
         futures = {executor.submit(_compile_single_concept, name, config, client, db, force): name for name in concept_names}
         for future in concurrent.futures.as_completed(futures):
             res = future.result()

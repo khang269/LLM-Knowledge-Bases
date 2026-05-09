@@ -1,6 +1,7 @@
 import os
 from typing import Optional, Any
 from pydantic import BaseModel
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 class LLMProvider:
     def generate_text(self, prompt: str, system_instruction: Optional[str] = None) -> str:
@@ -191,10 +192,22 @@ class LLMClient:
         else:
             raise ValueError(f"Unknown provider: {provider}")
 
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=2, max=20),
+        reraise=True
+    )
     def generate_text(self, prompt: str, system_instruction: Optional[str] = None) -> str:
         """Generate text from a prompt, optionally with system instructions."""
+        print(f"[LLM] Attempting API call (text)...")
         return self.provider_impl.generate_text(prompt, system_instruction)
 
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=2, max=20),
+        reraise=True
+    )
     def generate_structured(self, prompt: str, response_schema: type[BaseModel], system_instruction: Optional[str] = None) -> BaseModel:
         """Generate structured data adhering to a Pydantic schema."""
+        print(f"[LLM] Attempting API call (structured)...")
         return self.provider_impl.generate_structured(prompt, response_schema, system_instruction)
