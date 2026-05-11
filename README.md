@@ -10,7 +10,7 @@ Instead of relying on fragile RAG (Retrieval-Augmented Generation) with vector d
 
 - **Semantic Graph RAG:** Unlike vector search which can be "hit or miss," our system uses the LLM to pick entry points from the index and then programmatically traverses the graph of `[[wikilinks]]` and `source_file` breadcrumbs. This ensures the LLM always has the relevant context and the raw ground-truth data.
 - **Hybrid Memory System:** Uses concise, LLM-generated summaries for fast navigation and indexing, but automatically fetches the full, unedited **Raw Sources** during queries to ensure 100% accuracy and prevent hallucination.
-- **Multi-Threaded Performance:** High-speed ingestion and compilation pipelines use parallel processing to handle dozens of documents and hundreds of concepts in minutes.
+- **Multi-Threaded & Resilient Performance:** High-speed ingestion and compilation pipelines use parallel processing to handle dozens of documents in minutes. API calls are automatically wrapped with exponential backoff retries using `tenacity`, ensuring the system cleanly survives rate limits and network timeouts without skipping files.
 - **Global Cross-Workspace Memory:** Defaults to a unified global knowledge base (`~/.llm-wiki/`), allowing your AI agents to "remember" decisions and patterns across every project you work on.
 - **Safe & Structured:** Uses strict Pydantic schemas and a local SQLite database to track state, hashes, and links. The LLM never has raw write access to your filesystem.
 
@@ -82,9 +82,10 @@ llm-wiki config set model gemini-2.5-flash
 # Set your API keys (Stored securely in ~/.llm-wiki/.env)
 llm-wiki config set-key GOOGLE_API_KEY your_api_key_here
 
-# (Optional) Set query limits for the Graph Traversal
+# (Optional) Set query limits and concurrency for the Graph Traversal and Compilation
 llm-wiki config set max_chars 100000
 llm-wiki config set max_depth 2
+llm-wiki config set max_workers 3
 ```
 
 ---
